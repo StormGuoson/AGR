@@ -9,10 +9,15 @@ Module:Analyse Thread CPU&MEM and Plot
 __author__ = "sunyujuan(sunyujuan@baidu.com)"
 Date:    18/04/10
 """
+import argparse
 import os
 import sys
+from imp import reload
 
 import matplotlib.pyplot as plt
+
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 
 class MyThread(object):
@@ -20,16 +25,16 @@ class MyThread(object):
     MyThread class
     """
 
-    def __init__(self, result_dir, thread_list):
-        self.result_dir = result_dir
+    def __init__(self, info_dir, thread_list):
+        self.cur_dir = info_dir
         self.thread_list = thread_list
 
-        if not os.path.isdir(self.result_dir):
+        if not os.path.isdir(self.cur_dir):
             print("%s is not found!")
 
-        for file_name in os.listdir(self.result_dir):
+        for file_name in os.listdir(self.cur_dir):
             if file_name.startswith("so"):
-                self.so_file = os.path.join(self.result_dir, file_name)
+                self.so_file = os.path.join(self.cur_dir, file_name)
 
     def get_thread_data(self):
         """
@@ -87,7 +92,8 @@ class MyThread(object):
         :return: avg_data
         """
         avg_data = {}
-        res_file_name = self.result_dir + '/per_result.txt'
+        index = dirs.index(self.cur_dir)
+        res_file_name = result_dir + '/per_result%s.txt' % str(index)
         if os.path.exists(res_file_name):
             os.remove(res_file_name)
 
@@ -204,13 +210,15 @@ class MyThread(object):
         leg = plt.gca().get_legend()
         ltext = leg.get_texts()
         plt.setp(ltext, fontsize='small')
-        # plt.title(self.result_dir + 'report')
+        index = dirs.index(self.cur_dir)
+        plt.title(titles[index + 1])
         plt.xlabel('x')
         plt.ylabel('%')
         plt.grid()
         # plt.show()
-        picture_name = self.result_dir + '/report.jpg'
+        picture_name = result_dir + '/report%s.jpg' % str(index)
         plt.savefig(picture_name)
+        plt.close()
 
     def get(self):
         """
@@ -221,93 +229,166 @@ class MyThread(object):
             data = self.get_thread_data()
             avg_data = self.calculate_avg(data)
             self.plot_performance(data, avg_data)
-            self.save2html()
         except Exception as e:
             print("Exception: %s" % str(e))
             return False
         return True
 
-    def save2html(self):
-        pic_dir = 'report.jpg'
 
-        with open(self.result_dir + '/per_result.txt', 'r') as f:
-            results = f.readlines()
+def save2html():
+    pic_dirs = ''
+    for i in range(len(dirs)):
+        pic_dirs += format_img('report%s.jpg' % str(i))
 
-        with open(self.result_dir + '/report.html', 'w') as f:
-            f.write(self.body(self.result_dir, self.format_result(results), pic_dir))
+    txts = ''
+    for i in range(len(dirs)):
+        fp = os.path.join(result_dir, 'per_result%s.txt' % str(i))
+        with open(fp, 'r') as f:
+            txts += format_table(f.readlines(), i)
+    #
+    with open(os.path.join(result_dir, 'report.html'), 'w') as f:
+        f.write(body(txts, pic_dirs))
 
-    def format_result(self, result):
-        res = ''
+
+def format_table(result, index):
+    res = ''
+    if index == 0:
+        header = '''
+    <div class="Column" align="center" >
+    <table border="1"  cellspacing="0" width=%s cellpadding="5">
+    <caption>%s</caption>
+        <tr>
+            <th>NAME</th>
+            <th>AVG</th>
+            <th>MIN</th>
+            <th>MAX</th>
+         </tr>
+         ''' % ('100%', titles[index + 1])
+
         for line in result:
             single = [line[:line.find(':')],
                       line[line.find('avg = ') + 6:line.find('   min')],
                       line[line.find('min = ') + 6:line.find('   max')],
                       line[line.find('max = ') + 6:-1]]
-            res += '''<tr>
-            <td>%s</td>
-            <td>%s</td>
-            <td>%s</td>
-            <td>%s</td>
-                    </tr>''' % (
-                single[0], self.save_percent(single[1]), self.save_percent(single[2]),
-                self.save_percent(single[3]))
-        return res
+            res += '''
+                <tr>
+                    <td>%s</td>
+                    <td>%s</td>
+                    <td>%s</td>
+                    <td>%s</td>
+                </tr>''' % (
+                single[0], save_percent(single[1]), save_percent(single[2]),
+                save_percent(single[3]))
 
-    @staticmethod
-    def save_percent(i):
-        return str(round(float(i), 2)) + '%'
+    else:
+        header = '''
+            <div class="Column" align="center" >
+            <table border="1"  cellspacing="0" width=%s cellpadding="5">
+            <caption>%s</caption>
+                <tr>
+                    <th>AVG</th>
+                    <th>MIN</th>
+                    <th>MAX</th>
+                 </tr>
+                 ''' % ('100%', titles[index + 1])
 
-    @staticmethod
-    def body(title, txt, img=None):
-        r = '''
-<!DOCTYPE html>
+        for line in result:
+            single = [line[:line.find(':')],
+                      line[line.find('avg = ') + 6:line.find('   min')],
+                      line[line.find('min = ') + 6:line.find('   max')],
+                      line[line.find('max = ') + 6:-1]]
+            res += '''
+                <tr>
+                    <td>%s</td>
+                    <td>%s</td>
+                    <td>%s</td>
+                </tr>''' % (save_percent(single[1]), save_percent(single[2]),
+                            save_percent(single[3]))
+    return header + res + '</table> </div>'
+
+
+def format_img(_dir):
+    return '<div class="Column" align="center"><img src="%s" alt="main_img" width=%s> </div>' % (_dir, '100%')
+
+
+def save_percent(i):
+    return str(round(float(i), 2)) + '%'
+
+
+def body(table, img):
+    r = '''
+    <!DOCTYPE html>
     <html>
         <head>
+            <style>
+                .Row
+                    {
+                        display: table;
+                        width: %s; /*Optional*/
+                        table-layout: fixed; /*Optional*/
+                        border-spacing: 10px; /*Optional*/
+                    }
+                .Column
+                    {
+                        display: table-cell;
+                    }
+            </style>
             <meta charset="utf-8">
-            <title>%s</title>
+            <title>测试报告</title>
         </head>
     <body>
-        <table border="1" align="center" cellspacing="0" cellpadding="5">
-            <caption>Monthly savings</caption>
-            <tr>
-                <th>NAME</th>
-                <th>AVG</th>
-                <th>MIN</th>
-                <th>MAX</th>
-            </tr>
-            %s
-        </table>
-        <div align="center">
-            <img src="%s" alt="main_img" width="640" height="480"> 
+        <h1 align="center">%s</h1>
+        <div class="Row">
+        %s
+        </div>
+        <div class="Row">
+        %s
         </div>
     </body>
-    </html>''' % (title, txt, img)
-        return r
+    </html>''' % ('100%', titles[0], table, img)
+    return r
+
+
+def init_parse():
+    parser = argparse.ArgumentParser(description='this is a description')
+    parser.add_argument('-d', '--dir', help='测试文件夹主目录', required=True)
+    parser.add_argument('-s', '--style', help='设备类型：0为创维,1为华为', required=True)
+    parser.add_argument('-t', '--titles', help='输入一个数组,生成html内表格的标题,参数依次为：表格总标题、各表格小标题', required=True)
+    args = parser.parse_args()
+    return args
 
 
 def main():
-    for d in os.listdir(result_dir):
+    global dirs, result_dir
+    # 将路径添加到dirs
+    t = []
+    for d in os.listdir(home_dir):
+        d = os.path.join(home_dir, d)
         if os.path.isdir(d):
-            dirs.append(d)
-    ds = sorted(dirs)
-    for d in ds:
+            t.append(d)
+    dirs = sorted(t)
+    # 创建结果路径
+    result_dir = os.path.join(home_dir, 'result')
+    if not os.path.exists(result_dir):
+        os.mkdir(result_dir)
+    # start
+    for d in dirs:
         print(d)
         thread = MyThread(d, THREAD_LIST)
         thread.get()
         # retcode = 0 if ret else 1
+    save2html()
     sys.exit()
 
 
 if __name__ == '__main__':
-    """
-        pattern:输入 0 或 1。（0为创维，1为华为）
-    """
-    if len(sys.argv) != 3:
-        print("Usage: python getSoPerformance.py deviceIP 0/1(0为创维，1为华为)")
-        sys.exit(1)
+    # 存放结果路径
+    result_dir = ''
+    # 文件信息存放路径
     dirs = []
-    result_dir = sys.argv[1]
-    deviceIP = sys.argv[1]
-    pattern = sys.argv[2]
+    args = init_parse()
+    home_dir = args.dir
+    pattern = args.style
+    titles = args.titles.split(',')
     THREAD_LIST = ["gsc_thread", "spil_cap"]
     main()
