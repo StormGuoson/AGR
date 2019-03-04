@@ -1,3 +1,4 @@
 report
 venv
+.idea
 com/guo/geckodriver.log
