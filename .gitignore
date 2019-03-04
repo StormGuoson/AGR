@@ -1,4 +1,2 @@
-report
-venv
-.idea
+.idea/*
 com/guo/geckodriver.log
