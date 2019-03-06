@@ -178,256 +178,259 @@ def write_wakeup(no):
     L.release()
 
 
-def main_doing(_line, _module, no):
-    if _module == MOD_CW_DEMO:
-        module_chuangwei_demo(_line, no)
-    elif _module == MOD_CW_LAUNCHER:
-        module_chuangwei_launcher(_line, no)
-    elif _module == MOD_HUAWEI_LAUNCHER:
-        module_huawei_launcher(_line, no)
-    elif _module == MOD_AINEMO_LAUNCHER:
-        module_ainemo(_line, no)
-    elif _module == MOD_AINEMO_DEMO:
-        module_ainemo_demo(_line, no)
-    elif _module == MOD_HUAWEI_DEMO:
-        module_huawei2(_line, no)
-    elif _module == MOD_CW_SHOW:
-        module_cw_show(_line, no)
-    elif _module == MOD_CW_SHOW_DEMO:
-        module_cw_show_demo(_line, no)
-    elif _module == MOD_XGP:
-        module_xgp(_line, no)
-    elif _module == MOD_XIAODUBOX:
-        module_xdbox(_line, no)
-    elif _module == MOD_Max:
-        module_max(_line, no)
+class MODULE(object):
+    def __init__(self):
+        pass
 
+    def main_doing(self, _line, _module, no):
+        if _module == MOD_CW_DEMO:
+            self.module_chuangwei_demo(_line, no)
+        elif _module == MOD_CW_LAUNCHER:
+            self.module_chuangwei_launcher(_line, no)
+        elif _module == MOD_HUAWEI_LAUNCHER:
+            self.module_huawei_launcher(_line, no)
+        elif _module == MOD_AINEMO_LAUNCHER:
+            self.module_ainemo(_line, no)
+        elif _module == MOD_AINEMO_DEMO:
+            self.module_ainemo_demo(_line, no)
+        elif _module == MOD_HUAWEI_DEMO:
+            self.module_huawei2(_line, no)
+        elif _module == MOD_CW_SHOW:
+            self.module_cw_show(_line, no)
+        elif _module == MOD_CW_SHOW_DEMO:
+            self.module_cw_show_demo(_line, no)
+        elif _module == MOD_XGP:
+            self.module_xgp(_line, no)
+        elif _module == MOD_XIAODUBOX:
+            self.module_xdbox(_line, no)
+        elif _module == MOD_Max:
+            self.module_max(_line, no)
 
-# 创维demo识别
-def module_chuangwei_demo(line, no):
-    # if line.find('wakeup_time') != -1:
-    #     write_wakeup( no)
-    # if line.find("ASREngine") != -1 and line.find('origin_result') != -1 and line.find('corpus_no') != -1:
-    #     line = ast.literal_eval(line[line.find('{'):])
-    #     corpus = str(line['origin_result']['corpus_no'])
-    #     DATA['sn' + no] = corpus
-    # elif line.find('--final') != -1:
-    #     text = line[line.find('final: ') + 7: -1]
-    #     DATA['text' + no] = text
-    #     auto_set(text, DATA['sn' + no])
-    # elif line.find('wakeup_time') != -1 and line.find('result') != -1:
-    #     write_wakeup(no)
-    if line.find('final_result') != -1 and line.find('sn') != -1:
-        line = ast.literal_eval(line[line.find('{'):])
-        text = line['results_recognition'][0]
-        sn = line['origin_result']['sn']
-        corpus = str(line['origin_result']['corpus_no'])
-        DATA['sn' + no] = sn + "_" + corpus
-        DATA['text' + no] = text
-        auto_set(text, sn)
+    # 创维demo识别
+    @staticmethod
+    def module_chuangwei_demo(line, no):
+        # if line.find('wakeup_time') != -1:
+        #     write_wakeup( no)
+        # if line.find("ASREngine") != -1 and line.find('origin_result') != -1 and line.find('corpus_no') != -1:
+        #     line = ast.literal_eval(line[line.find('{'):])
+        #     corpus = str(line['origin_result']['corpus_no'])
+        #     DATA['sn' + no] = corpus
+        # elif line.find('--final') != -1:
+        #     text = line[line.find('final: ') + 7: -1]
+        #     DATA['text' + no] = text
+        #     auto_set(text, DATA['sn' + no])
+        # elif line.find('wakeup_time') != -1 and line.find('result') != -1:
+        #     write_wakeup(no)
+        if line.find('final_result') != -1 and line.find('sn') != -1:
+            line = ast.literal_eval(line[line.find('{'):])
+            text = line['results_recognition'][0]
+            sn = line['origin_result']['sn']
+            corpus = str(line['origin_result']['corpus_no'])
+            DATA['sn' + no] = sn + "_" + corpus
+            DATA['text' + no] = text
+            auto_set(text, sn)
 
+    # 创维launcher识别
+    @staticmethod
+    def module_chuangwei_launcher(line, no):
+        if line.find('wakeup_time') != -1:
+            write_wakeup(no)
+        elif line.find("BDSHttpRequestMaker") != -1 and line.find("response") != -1 and line.find(
+                'sn') != -1 and line.find('result') != -1:
+            line = line[line.find('{'):line.rfind('}') + 1]
+            line = ast.literal_eval(line)
+            sn = line["sn"]
+            corpus = str(line['corpus_no'])
+            if 'osn' not in DATA:
+                DATA['osn'] = ''
+            if sn != DATA['osn']:
+                DATA['osn'] = sn
+                DATA['sn' + no] = sn + '_' + corpus
+                print(sn)
+        elif line.find("onFinalReconnition") != -1:
+            text = line[line.rfind(':') + 2:line.find('type') - 1]
+            # DATA['sn'] += '_' + str(DATA['wakeup_angle'])
+            DATA['text' + no] = text
+            print(DATA['text' + no])
+            print('')
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
-# 创维launcher识别
-def module_chuangwei_launcher(line, no):
-    if line.find('wakeup_time') != -1:
-        write_wakeup(no)
-    elif line.find("BDSHttpRequestMaker") != -1 and line.find("response") != -1 and line.find(
-            'sn') != -1 and line.find('result') != -1:
-        line = line[line.find('{'):line.rfind('}') + 1]
-        line = ast.literal_eval(line)
-        sn = line["sn"]
-        corpus = str(line['corpus_no'])
-        if 'osn' not in DATA:
-            DATA['osn'] = ''
-        if sn != DATA['osn']:
-            DATA['osn'] = sn
+    # 华为产品包 识别
+    @staticmethod
+    def module_huawei_launcher(line, no):
+        if line.find('SpeechCallback') != -1 and line.find('wakeup_time') != -1:
+            write_wakeup(no)
+            # if debug_mode:
+            #     threading.Thread(target=lambda: time.sleep(.5)).start()
+            #     threading.Thread(
+            #         target=lambda: os.popen('adb -s %s shell input tap 300 300' % ACTIVE_DEVICES[int(no)]).close()).start()
+
+        elif line.find(u'SpeechCallback') != -1 and line.find('final_result') != -1 and line.find('corpus') != -1:
+            # print line
+            line = ast.literal_eval(line[line.find('{'):])
+            DATA['text' + no] = line['best_result']
+            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
+            auto_set(DATA['text' + no], DATA['sn' + no])
+
+    # 小鱼识别
+    @staticmethod
+    def module_ainemo(line, no):
+        if line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
+            write_wakeup(no)
+            if only_wakeup:
+                os.popen('adb -s %s shell input tap 400 400' % ACTIVE_DEVICES[int(no)]).close()
+        elif line.find("SpeechCallback") != -1 and line.find("final") != -1:
+            line = line[line.find('{'):]
+            line = ast.literal_eval(line)
+            text = line['best_result']
+            sn = line['origin_result']['sn']
+            corpus = str(line['origin_result']['corpus_no'])
             DATA['sn' + no] = sn + '_' + corpus
-            print(sn)
-    elif line.find("onFinalReconnition") != -1:
-        text = line[line.rfind(':') + 2:line.find('type') - 1]
-        # DATA['sn'] += '_' + str(DATA['wakeup_angle'])
-        DATA['text' + no] = text
-        print(DATA['text' + no])
-        print('')
-        auto_set(DATA['text' + no], DATA['sn' + no])
+            DATA['text' + no] = text
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
+    @staticmethod
+    def module_ainemo_demo(line, no):
+        if line.find('wakeup_time') != -1 and line.find('result') != -1:
+            write_wakeup(no)
+        # elif line.find("DCS-AsrEngine") != -1 and line.find('logid') != -1:
+        #     logid = line[line.find('logid') + 8:line.find('client_ip') - 3]
+        #     print logid
+        #     DATA['sn' + no] = logid
+        elif line.find('final') != -1:
+            line = ast.literal_eval(line[line.find('{'):])
+            text = line['results_recognition'][0]
+            sn = line['origin_result']['sn']
+            corpus = str(line['origin_result']['corpus_no'])
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + '_' + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
-# 华为产品包 识别
-def module_huawei_launcher(line, no):
-    if line.find('SpeechCallback') != -1 and line.find('wakeup_time') != -1:
-        write_wakeup(no)
-        # if debug_mode:
-        #     threading.Thread(target=lambda: time.sleep(.5)).start()
-        #     threading.Thread(
-        #         target=lambda: os.popen('adb -s %s shell input tap 300 300' % ACTIVE_DEVICES[int(no)]).close()).start()
+    # 华为demo
+    @staticmethod
+    def module_huawei2(line, no):
+        if line.find('wakeup_time') != -1 and line.find('result') != -1:
+            write_wakeup(no)
+        elif line.find('Final result:') != -1:
+            line = ast.literal_eval(line[line.find('{'):])
+            DATA['text' + no] = line['results_recognition'][0]
+            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
-    elif line.find(u'SpeechCallback') != -1 and line.find('final_result') != -1 and line.find('corpus') != -1:
-        # print line
-        line = ast.literal_eval(line[line.find('{'):])
-        DATA['text' + no] = line['best_result']
-        DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
-        auto_set(DATA['text' + no], DATA['sn' + no])
+    # 创维show
+    @staticmethod
+    def module_cw_show(line, no):
+        if line.find("wakeup_time") != -1 and line.find("result") != -1:
+            write_wakeup(no)
+        elif line.find('final_result') != -1 and line.find('SpeechCallback') != -1:
+            line = ast.literal_eval(line[line.find('{'):])
+            text = line['results_recognition'][0]
+            corpus = str(line['origin_result']['corpus_no'])
+            sn = line['origin_result']['sn']
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + '_' + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
+    @staticmethod
+    def module_cw_show_demo(line, no):
+        # if line.find('BDSHttpRequestMaker') != -1 and line.find('corpus_no') != -1 and line.find('response') != -1:
+        #     line = line[line.find('{'):line.rfind('}') + 1]
+        #     line = ast.literal_eval(line)
+        #     sn = line["sn"]
+        #     corpus = str(line['corpus_no'])
+        #     if 'osn' not in DATA:
+        #         DATA['osn'] = ''
+        #     if sn != DATA['osn']:
+        #         DATA['osn'] = sn
+        #         DATA['sn' + no] = sn + '_' + corpus
+        if line.find("EventManagerAsr") != -1 and line.find("final") != -1:
+            line = ast.literal_eval(line[line.find('{'):])
+            text = line['best_result']
+            sn = line['origin_result']['sn']
+            corpus = str(line['origin_result']['corpus_no'])
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + '_' + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
+        elif line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
+            write_wakeup(no)
+        elif line.find('qyq_plugin') != -1 and line.find('FINAL') != -1:
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            text = line['payload']['text']
+            DATA['text' + no] = text
+            auto_set(DATA['text' + no], DATA['sn' + no])
+        elif line.find("BDSHttpRequestMaker") != -1 and line.find('corpus_no') != -1:
+            line = line[line.find('{'):]
+            line = ast.literal_eval(line)
+            sn = line['sn']
+            corpus_no = str(line['corpus_no'])
+            if 'osn' not in DATA:
+                DATA['osn'] = ''
+            if sn != DATA['osn']:
+                DATA['osn'] = sn
+                DATA['sn' + no] = sn + '_' + corpus_no
 
-# 小鱼识别
-def module_ainemo(line, no):
-    if line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
-        write_wakeup(no)
-        if only_wakeup:
-            os.popen('adb -s %s shell input tap 400 400' % ACTIVE_DEVICES[int(no)]).close()
-    elif line.find("SpeechCallback") != -1 and line.find("final") != -1:
-        line = line[line.find('{'):]
-        line = ast.literal_eval(line)
-        text = line['best_result']
-        sn = line['origin_result']['sn']
-        corpus = str(line['origin_result']['corpus_no'])
-        DATA['sn' + no] = sn + '_' + corpus
-        DATA['text' + no] = text
-        auto_set(DATA['text' + no], DATA['sn' + no])
+    def module_xgp(self, line, no):
+        self.module_xdbox(line, no)
 
+    @staticmethod
+    def module_xdbox(line, no):
+        # 小钢炮
+        if 'wakeup trigger' in line:
+            write_wakeup(no)
+        elif 'kwd_detect' in line:
+            write_wakeup(no)
+        elif ('Final result' in line and 'results_recognition' in line) or 'result=asr' in line:
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            text = line['results_recognition'][0]
+            corpus = str(line['origin_result']['corpus_no'])
+            sn = line['origin_result']['sn']
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + '_' + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
+        elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
+            line = ast.literal_eval(line[line.find('{'):])
+            text = line['result']['word'][0]
+            corpus = str(line['corpus_no'])
+            sn = line['sn']
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + "_" + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
-def module_ainemo_demo(line, no):
-    if line.find('wakeup_time') != -1 and line.find('result') != -1:
-        write_wakeup(no)
-    # elif line.find("DCS-AsrEngine") != -1 and line.find('logid') != -1:
-    #     logid = line[line.find('logid') + 8:line.find('client_ip') - 3]
-    #     print logid
-    #     DATA['sn' + no] = logid
-    elif line.find('final') != -1:
-        line = ast.literal_eval(line[line.find('{'):])
-        text = line['results_recognition'][0]
-        sn = line['origin_result']['sn']
-        corpus = str(line['origin_result']['corpus_no'])
-        DATA['text' + no] = text
-        DATA['sn' + no] = sn + '_' + corpus
-        auto_set(DATA['text' + no], DATA['sn' + no])
+        # audio:
+        # if line.find('kwd_detect') != -1:
+        #     write_wakeup(no)
+        # elif line.find('Final result') != -1:
+        #     line = ast.literal_eval(line[line.find('{'):])
+        #     text = line['result']['word'][0]
+        #     corpus = str(line['corpus_no'])
+        #     sn = str(line['sn'])
+        #     DATA['text' + no] = text
+        #     DATA['sn' + no] = sn + "_" + corpus
+        #     auto_set(DATA['text' + no], DATA['sn' + no])
+        # 度秘
+        # if 'wakeup trigger' in line:
+        #     write_wakeup(no)
+        # elif 'finish content' in line:
+        #     line = ast.literal_eval(line[line.find('{'):])
+        #     text = line['result']['word'][0]
+        #     corpus = str(line['corpus_no'])
+        #     sn = line['sn']
+        #     DATA['text' + no] = text
+        #     DATA['sn' + no] = sn + '_' + corpus
+        #     auto_set(DATA['text' + no], DATA['sn' + no])
 
-
-# 华为demo
-def module_huawei2(line, no):
-    if line.find('wakeup_time') != -1 and line.find('result') != -1:
-        write_wakeup(no)
-    elif line.find('Final result:') != -1:
-        line = ast.literal_eval(line[line.find('{'):])
-        DATA['text' + no] = line['results_recognition'][0]
-        DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
-        auto_set(DATA['text' + no], DATA['sn' + no])
-
-
-# 创维show
-def module_cw_show(line, no):
-    if line.find("wakeup_time") != -1 and line.find("result") != -1:
-        write_wakeup(no)
-    elif line.find('final_result') != -1 and line.find('SpeechCallback') != -1:
-        line = ast.literal_eval(line[line.find('{'):])
-        text = line['results_recognition'][0]
-        corpus = str(line['origin_result']['corpus_no'])
-        sn = line['origin_result']['sn']
-        DATA['text' + no] = text
-        DATA['sn' + no] = sn + '_' + corpus
-        auto_set(DATA['text' + no], DATA['sn' + no])
-
-
-def module_cw_show_demo(line, no):
-    # if line.find('BDSHttpRequestMaker') != -1 and line.find('corpus_no') != -1 and line.find('response') != -1:
-    #     line = line[line.find('{'):line.rfind('}') + 1]
-    #     line = ast.literal_eval(line)
-    #     sn = line["sn"]
-    #     corpus = str(line['corpus_no'])
-    #     if 'osn' not in DATA:
-    #         DATA['osn'] = ''
-    #     if sn != DATA['osn']:
-    #         DATA['osn'] = sn
-    #         DATA['sn' + no] = sn + '_' + corpus
-    if line.find("EventManagerAsr") != -1 and line.find("final") != -1:
-        line = ast.literal_eval(line[line.find('{'):])
-        text = line['best_result']
-        sn = line['origin_result']['sn']
-        corpus = str(line['origin_result']['corpus_no'])
-        DATA['text' + no] = text
-        DATA['sn' + no] = sn + '_' + corpus
-        auto_set(DATA['text' + no], DATA['sn' + no])
-    elif line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
-        write_wakeup(no)
-    elif line.find('qyq_plugin') != -1 and line.find('FINAL') != -1:
-        line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
-        text = line['payload']['text']
-        DATA['text' + no] = text
-        auto_set(DATA['text' + no], DATA['sn' + no])
-    elif line.find("BDSHttpRequestMaker") != -1 and line.find('corpus_no') != -1:
-        line = line[line.find('{'):]
-        line = ast.literal_eval(line)
-        sn = line['sn']
-        corpus_no = str(line['corpus_no'])
-        if 'osn' not in DATA:
-            DATA['osn'] = ''
-        if sn != DATA['osn']:
-            DATA['osn'] = sn
-            DATA['sn' + no] = sn + '_' + corpus_no
-
-
-def module_xgp(line, no):
-    module_xdbox(line, no)
-
-
-def module_xdbox(line, no):
-    # 小钢炮
-    if 'wakeup trigger' in line:
-        write_wakeup(no)
-    elif 'kwd_detect' in line:
-        write_wakeup(no)
-    elif ('Final result' in line and 'results_recognition' in line) or 'result=asr' in line:
-        line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
-        text = line['results_recognition'][0]
-        corpus = str(line['origin_result']['corpus_no'])
-        sn = line['origin_result']['sn']
-        DATA['text' + no] = text
-        DATA['sn' + no] = sn + '_' + corpus
-        auto_set(DATA['text' + no], DATA['sn' + no])
-    elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
-        line = ast.literal_eval(line[line.find('{'):])
-        text = line['result']['word'][0]
-        corpus = str(line['corpus_no'])
-        sn = line['sn']
-        DATA['text' + no] = text
-        DATA['sn' + no] = sn + "_" + corpus
-        auto_set(DATA['text' + no], DATA['sn' + no])
-
-    # audio:
-    # if line.find('kwd_detect') != -1:
-    #     write_wakeup(no)
-    # elif line.find('Final result') != -1:
-    #     line = ast.literal_eval(line[line.find('{'):])
-    #     text = line['result']['word'][0]
-    #     corpus = str(line['corpus_no'])
-    #     sn = str(line['sn'])
-    #     DATA['text' + no] = text
-    #     DATA['sn' + no] = sn + "_" + corpus
-    #     auto_set(DATA['text' + no], DATA['sn' + no])
-    # 度秘
-    # if 'wakeup trigger' in line:
-    #     write_wakeup(no)
-    # elif 'finish content' in line:
-    #     line = ast.literal_eval(line[line.find('{'):])
-    #     text = line['result']['word'][0]
-    #     corpus = str(line['corpus_no'])
-    #     sn = line['sn']
-    #     DATA['text' + no] = text
-    #     DATA['sn' + no] = sn + '_' + corpus
-    #     auto_set(DATA['text' + no], DATA['sn' + no])
-
-
-def module_max(line, no):
-    if 'wakeup_time' in line and 'Activity04WakeupAndASR' in line:
-        write_wakeup(no)
-    elif u'SpeechCallback' in line and 'final_result' in line:
-        line = ast.literal_eval(line[line.find('{'):])
-        text = line['results_recognition'][0]
-        corpus = line['origin_result']['corpus_no']
-        sn = line['origin_result']['sn']
-        DATA['text' + no] = text
-        DATA['sn' + no] = sn + '_' + str(corpus)
-        auto_set(DATA['text' + no], DATA['sn' + no])
+    @staticmethod
+    def module_max(line, no):
+        if 'wakeup_time' in line and 'Activity04WakeupAndASR' in line:
+            write_wakeup(no)
+        elif u'SpeechCallback' in line and 'final_result' in line:
+            line = ast.literal_eval(line[line.find('{'):])
+            text = line['results_recognition'][0]
+            corpus = line['origin_result']['corpus_no']
+            sn = line['origin_result']['sn']
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + '_' + str(corpus)
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
 
 class AsynchronousFileReader(threading.Thread):
@@ -484,11 +487,12 @@ def consume(command, no):
     # Check the queues if we received some output (until there is nothing more to get).
     # frame.txt_log.write(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     print(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
+    mod = MODULE()
     while not stdout_reader.eof() or not stderr_reader.eof():
         while not stdout_queue.empty():
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
-                main_doing(line, CURRENT_MODULE, no)
+                mod.main_doing(line, CURRENT_MODULE, no)
             except Exception as e:
                 print('\033[1;31m错误: ' + repr(e) + '\033[0m')
                 # frame.txt_log.write(repr(e))
