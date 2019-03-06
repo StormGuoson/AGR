@@ -240,75 +240,124 @@ def save2html():
     for i in range(len(dirs)):
         pic_dirs += format_img('report%s.jpg' % str(i))
 
-    txts = ''
-    for i in range(len(dirs)):
-        fp = os.path.join(result_dir, 'per_result%s.txt' % str(i))
-        with open(fp, 'r') as f:
-            txts += format_table(f.readlines(), i)
-    #
     with open(os.path.join(result_dir, 'report.html'), 'w') as f:
-        f.write(body(txts, pic_dirs))
+        f.write(body(format_table(), pic_dirs))
 
 
-def format_table(result, index):
-    res = ''
-    if index == 0:
-        header = '''
-    <div class="Column" align="center" >
-    <table border="1"  cellspacing="0" width=%s cellpadding="5">
-    <caption>%s</caption>
-        <tr>
-            <th>NAME</th>
-            <th>AVG</th>
-            <th>MIN</th>
-            <th>MAX</th>
-         </tr>
-         ''' % ('100%', titles[index + 1])
-
-        for line in result:
-            single = [line[:line.find(':')],
-                      line[line.find('avg = ') + 6:line.find('   min')],
-                      line[line.find('min = ') + 6:line.find('   max')],
-                      line[line.find('max = ') + 6:-1]]
-            res += '''
-                <tr>
-                    <td>%s</td>
-                    <td>%s</td>
-                    <td>%s</td>
-                    <td>%s</td>
-                </tr>''' % (
-                single[0], save_percent(single[1]), save_percent(single[2]),
-                save_percent(single[3]))
-
+def mix_txt_results():
+    format_lists = []
+    ress = []
+    l = len(dirs)
+    for i in range(l):
+        with open(os.path.join(result_dir, 'per_result%s.txt' % str(i))) as f:
+            tmp = []
+            lines = f.readlines()
+            for line in lines:
+                single = [line[line.find('avg = ') + 6:line.find('   min')],
+                          line[line.find('min = ') + 6:line.find('   max')],
+                          line[line.find('max = ') + 6:-1]]
+                tmp.append(single)
+            ress.append(tmp)
+    if pattern == '0':
+        y = 6
     else:
-        header = '''
-            <div class="Column" align="center" >
-            <table border="1"  cellspacing="0" width=%s cellpadding="5">
-            <caption>%s</caption>
-                <tr>
-                    <th>AVG</th>
-                    <th>MIN</th>
-                    <th>MAX</th>
-                 </tr>
-                 ''' % ('100%', titles[index + 1])
+        y = 4
+    for i in range(y):
+        tmp = []
+        for n in range(l):
+            tmp += ress[n][i]
+        format_lists.append(tmp)
+    return format_lists
 
-        for line in result:
-            single = [line[:line.find(':')],
-                      line[line.find('avg = ') + 6:line.find('   min')],
-                      line[line.find('min = ') + 6:line.find('   max')],
-                      line[line.find('max = ') + 6:-1]]
-            res += '''
-                <tr>
-                    <td>%s</td>
-                    <td>%s</td>
-                    <td>%s</td>
-                </tr>''' % (save_percent(single[1]), save_percent(single[2]),
-                            save_percent(single[3]))
-    return header + res + '</table> </div>'
+
+def format_table_titles():
+    res = '''<th>NAME</th>
+    '''
+    for i in range(len(dirs)):
+        res += '''<th colspan=3>%s</th>
+        ''' % titles[i + 1]
+    return res
+
+
+def get_table_name(i):
+    total = ''
+    if pattern == '0':
+        if i == 0:
+            total += '''<td>gsc_thread_cpu</td>
+            '''
+        elif i == 1:
+            total += '''<td>gsc_thread_mem</td>
+                            '''
+        elif i == 2:
+            total += '''<td>gsc_thread_mem_rss</td>
+                            '''
+        elif i == 3:
+            total += '''<td>spil_cap_cpu</td>
+                            '''
+        elif i == 4:
+            total += '''<td>spil_cap_mem</td>
+                            '''
+        elif i == 5:
+            total += '''<td>spil_cap_mem_rss</td>
+                            '''
+    else:
+        if i == 0:
+            total += '''<td>gsc_thread_cpu</td>
+            '''
+        elif i == 1:
+            total += '''<td>gsc_thread_mem</td>
+                            '''
+        elif i == 2:
+            total += '''<td>spil_cap_cpu</td>
+                            '''
+        elif i == 3:
+            total += '''<td>spil_cap_mem</td>
+                            '''
+    return total
+
+
+def format_table_ele():
+    mtr = mix_txt_results()
+    total = ''''''
+    if pattern == '0':
+        count = 6
+    else:
+        count = 4
+    for i in range(count):
+        total += '''<tr>
+           '''
+        total += get_table_name(i)
+        for i2 in range(len(dirs) * 3):
+            total += '''<td>%s</td>
+            ''' % save_percent(mtr[i][i2])
+        total += '</tr>'
+    return total
+
+
+def format_table():
+    if len(dirs) == 1:
+        per = '40%'
+    else:
+        per = '85%'
+    res = '''
+    <div class="Column" align="center" >
+    <table border="1" width=%s cellspacing="0" cellpadding="5">
+        <tr>
+            %s
+        </tr>
+        %s
+    </table>
+    </div>''' % (per, format_table_titles(), format_table_ele())
+
+    return res + ''
 
 
 def format_img(_dir):
-    return '<div class="Column" align="center"><img src="%s" alt="main_img" width=%s> </div>' % (_dir, '100%')
+    if len(dirs) == 1:
+        per = '50%'
+    else:
+        per = '100%'
+    return '<div class="Column" align="center"><img src="%s" alt="main_img" width=%s> </div>' % (_dir, per)
 
 
 def save_percent(i):

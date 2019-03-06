@@ -43,11 +43,12 @@ def multi_thread():
 
     while int(time.strftime('%H', time.localtime(time.time()))) < 10:
         # while int(time.strftime('%M', time.localtime(time.time()))) < 44:
-        time.sleep(.05)
+        time.sleep(.1)
     for d in drivers:
         try:
-            d.execute_script(
-                'window.document.getElementsByClassName("el-button btn-box btn-book el-button--default")[0].click();')
+            threading.Thread(target=lambda: d.execute_script(
+                'window.document.getElementsByClassName("el-button '
+                'btn-box btn-book el-button--default")[0].click();')).start()
         except Exception:
             pass
 

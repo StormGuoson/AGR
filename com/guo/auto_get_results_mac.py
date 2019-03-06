@@ -504,6 +504,7 @@ def consume(command, no):
             time.sleep(.1)
         except KeyboardInterrupt:
             pass
+    kill_self()
     # Let's be tidy and join the threads we've started.
     # stdout_reader.join()
     # stderr_reader.join()

@@ -4,6 +4,8 @@ import threading
 import time
 from queue import Queue
 
+import psutil
+
 
 class AsynchronousFileReader(threading.Thread):
     """
@@ -20,8 +22,11 @@ class AsynchronousFileReader(threading.Thread):
 
     def run(self):
         """The body of the tread: read lines and put them on the queue."""
-        for line in iter(self._fd.readline, ''):
-            self._queue.put(line)
+        try:
+            for line in iter(self._fd.readline, ''):
+                self._queue.put(line)
+        except ValueError:
+            pass
 
     def eof(self):
         """Check whether there is no more content to expect."""
@@ -54,18 +59,31 @@ def consume(command):
         while not stderr_queue.empty():
             line = stderr_queue.get().decode('utf-8')
             print(str(line))
-    # Sleep a bit before asking the readers again.
-    try:
-        time.sleep(.1)
-    except KeyboardInterrupt:
-        pass
+        # Sleep a bit before asking the readers again.
+        try:
+            time.sleep(.1)
+        except KeyboardInterrupt:
+            pass
+
+    for k, v in data.items():
+        print('%s\t%s' % (k, v))
+    kill_self()
+    return
     # Let's be tidy and join the threads we've started.
-    stdout_reader.join()
-    stderr_reader.join()
+    # stdout_reader.join()
+    # stderr_reader.join()
     # Close subprocess' file descriptors.
-    process.stdout.close()
-    process.stderr.close()
-    process.kill()
+    # process.stdout.close()
+    # process.stderr.close()
+    # process.kill()
+
+
+def kill_self():
+    print('\n\033[1;31m=======停止=======\033[0m')
+    pids = psutil.pids()
+    for pid in pids:
+        if psutil.Process(pid).name() == 'Python':
+            psutil.Process(pid).kill()
 
 
 def get_device_list():
@@ -85,23 +103,21 @@ def check_by_logcat(line):
     global is_finish
     if None not in data.values():
         is_finish = True
-        for k, v in data.items():
-            print('%s\t%s' % (k, v))
         return
-    if 'ASR SDK VERSION_NAME' in line:
-        sdk_ver = line[line.rfind(':') + 2:-1]
-        print(sdk_ver)
+    if 'VERSION_NAME:' in line:
+        sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
         data['sdk版本号'] = sdk_ver
     elif 'SHA1' in line:
-        if data['唤醒引擎版本'] is None:
-            pass
-        elif data['VAD引擎版本号'] is None:
-            pass
+        if data['VAD引擎版本号'] is None:
+            line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+            data['VAD引擎版本号'] = line
 
 
 def check_by_m():
     sys_info = os.popen('adb shell getprop | grep display')
-    data['系统版本号'] = sys_info.readlines()[0]
+    t = sys_info.readlines()[1]
+    t = t[t.find(']: [') + 4:t.rfind(']')]
+    data['系统版本号'] = t
     sys_info.close()
     lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
     data['信号库md5'] = lib.readlines()[0].split()[0]
@@ -120,7 +136,7 @@ if __name__ == '__main__':
         'sdk版本号': None,
         '系统版本号': None,
         '信号库md5': None,
-        '唤醒引擎版本': None,
+        '唤醒引擎版本': 'None',
         '唤醒资源md5': None,
         'VAD引擎版本号': None,
         'VAD资源md5': None
@@ -128,4 +144,5 @@ if __name__ == '__main__':
     is_finish = False
     devs = get_device_list()
     print(devs[0])
+    check_by_m()
     consume('adb -s %s logcat' % devs[0])
