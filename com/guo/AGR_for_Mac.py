@@ -14,9 +14,9 @@ Queue = queue
 L = threading.Lock()
 
 
-def set_clipboard_text(t):
+def set_clipboard_text(_t):
     p = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-    p.stdin.write(t.encode('utf-8'))
+    p.stdin.write(_t.encode('utf-8'))
     p.stdin.close()
     p.communicate()
 
@@ -88,7 +88,7 @@ def _as(_text, _sn):
             msg += DATA['text' + str(s)] + '\t' + DATA['sn' + str(s)]
             if s + 1 != len(ACTIVE_DEVICES):
                 msg += '\t'
-        save_memory(SAVE_RESULTS, msg + '\r')
+        t.save_memory(SAVE_RESULTS, msg + '\r')
 
     for d in range(len(ACTIVE_DEVICES)):
         d = str(d)
@@ -97,6 +97,7 @@ def _as(_text, _sn):
 
 only_wakeup = False
 write_rec = False
+stop_logcat = False
 SAVE_RESULTS = r'~/Desktop/res.log'
 SAVE_AUDIO = r'~/Desktop/audio'
 td = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -121,39 +122,6 @@ MOD_XGP = '小钢炮'
 MOD_CW_SHOW_DEMO = '创维show—demo'
 
 DATA = {}
-
-
-def select_mod(_index=-1):
-    if _index == -1:
-        return 11
-
-    if _index == 0:
-        return MOD_AINEMO_LAUNCHER
-    if _index == 1:
-        return MOD_AINEMO_DEMO
-    if _index == 2:
-        return MOD_CW_LAUNCHER
-    if _index == 3:
-        return MOD_CW_DEMO
-    if _index == 4:
-        return MOD_HUAWEI_LAUNCHER
-    if _index == 5:
-        return MOD_HUAWEI_DEMO
-    if _index == 6:
-        return MOD_CW_SHOW
-    if _index == 7:
-        return MOD_Max
-    if _index == 8:
-        return MOD_XIAODUBOX
-    if _index == 9:
-        return MOD_XGP
-    if _index == 10:
-        return MOD_CW_SHOW_DEMO
-
-
-def show_mods():
-    for i in range(select_mod()):
-        print('%d.%s' % (i, select_mod(i)))
 
 
 def write_wakeup(no):
@@ -263,7 +231,8 @@ class MODULE(object):
             # if debug_mode:
             #     threading.Thread(target=lambda: time.sleep(.5)).start()
             #     threading.Thread(
-            #         target=lambda: os.popen('adb -s %s shell input tap 300 300' % ACTIVE_DEVICES[int(no)]).close()).start()
+            #         target=lambda: os.popen('adb -s %s shell input tap 300 300' %
+            #         ACTIVE_DEVICES[int(no)]).close()).start()
 
         elif line.find(u'SpeechCallback') != -1 and line.find('final_result') != -1 and line.find('corpus') != -1:
             # print line
@@ -440,12 +409,12 @@ class AsynchronousFileReader(threading.Thread):
     be consumed in another thread.
     """
 
-    def __init__(self, fd, queue):
-        assert isinstance(queue, Queue.Queue)
+    def __init__(self, fd, q):
+        assert isinstance(q, Queue.Queue)
         assert callable(fd.readline)
         threading.Thread.__init__(self)
         self._fd = fd
-        self._queue = queue
+        self._queue = q
 
     def run(self):
         """The body of the tread: read lines and put them on the queue."""
@@ -455,14 +424,6 @@ class AsynchronousFileReader(threading.Thread):
     def eof(self):
         """Check whether there is no more content to expect."""
         return not self.is_alive() and self._queue.empty()
-
-
-def kill_self():
-    print('\n\033[1;31m=======停止=======\033[0m')
-    pids = psutil.pids()
-    for pid in pids:
-        if psutil.Process(pid).name() == 'Python':
-            psutil.Process(pid).kill()
 
 
 def consume(command, no):
@@ -489,6 +450,8 @@ def consume(command, no):
     print(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     mod = MODULE()
     while not stdout_reader.eof() or not stderr_reader.eof():
+        if stop_logcat:
+            t.kill_self()
         while not stdout_queue.empty():
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
@@ -498,17 +461,13 @@ def consume(command, no):
                 # frame.txt_log.write(repr(e))
         while not stderr_queue.empty():
             line = stderr_queue.get().decode('utf-8')
-            if 'has been replaced' in line:
-                print(repr(line))
+            if 'has been replaced' in line or 'eof' in line:
+                print(str(line))
                 continue
             print('\033[1;31m错误: 设备-' + ACTIVE_DEVICES[int(no)] + repr(line) + '\033[0m')
-            kill_self()
+            t.kill_self()
         # Sleep a bit before asking the readers again.
-        try:
-            time.sleep(.1)
-        except KeyboardInterrupt:
-            pass
-    kill_self()
+        time.sleep(.1)
     # Let's be tidy and join the threads we've started.
     # stdout_reader.join()
     # stderr_reader.join()
@@ -517,14 +476,6 @@ def consume(command, no):
     # process.stderr.close()
     # process.kill()
     # kill_self()
-
-
-def save_memory(filename, _content):
-    mp = str(filename[:filename.rfind('\\')])
-    if not os.path.exists(mp):
-        os.makedirs(mp)
-    with open(filename.decode(), "a+") as f:
-        f.write(_content)
 
 
 def get_device_list():
@@ -567,40 +518,97 @@ class ThreadLogcat(threading.Thread):
             consume("adb -s %s logcat -v time" % _d, str(self.dev))
 
 
-class Tools(threading.Thread):
-    pull = 0
-    restart = 1
-    reboot = 2
+class Tools(object):
 
-    def __init__(self, command):
+    def pull_audio(self, cmd):
+        pass
+
+    def restart_app(self):
+        pass
+
+    def reboot_dev(self):
+        pass
+
+    @staticmethod
+    def kill_self():
+        print('\n\033[1;31m=======停止=======\033[0m')
+        pids = psutil.pids()
+        for pid in pids:
+            if psutil.Process(pid).name() == 'Python':
+                psutil.Process(pid).kill()
+
+    @staticmethod
+    def select_mod(_index=-1):
+        if _index == -1:
+            return 11
+
+        if _index == 0:
+            return MOD_AINEMO_LAUNCHER
+        if _index == 1:
+            return MOD_AINEMO_DEMO
+        if _index == 2:
+            return MOD_CW_LAUNCHER
+        if _index == 3:
+            return MOD_CW_DEMO
+        if _index == 4:
+            return MOD_HUAWEI_LAUNCHER
+        if _index == 5:
+            return MOD_HUAWEI_DEMO
+        if _index == 6:
+            return MOD_CW_SHOW
+        if _index == 7:
+            return MOD_Max
+        if _index == 8:
+            return MOD_XIAODUBOX
+        if _index == 9:
+            return MOD_XGP
+        if _index == 10:
+            return MOD_CW_SHOW_DEMO
+
+    def show_mods(self):
+        for i in range(self.select_mod()):
+            print('%d.%s' % (i, self.select_mod(i)))
+
+    @staticmethod
+    def save_memory(filename, _content):
+        mp = str(filename[:filename.rfind('\\')])
+        if not os.path.exists(mp):
+            os.makedirs(mp)
+        with open(filename, "a+") as f:
+            f.write(_content)
+
+
+class InputWatcher(threading.Thread):
+
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.command = command
+        self.start()
 
     def run(self):
-        if self.command == self.pull:
-            self.__pull_audio()
-        elif self.command == self.restart:
-            self.__restart_app()
-        elif self.command == self.__reboot_dev:
-            self.__reboot_dev()
+        global stop_logcat
+        while not stop_logcat:
+            cmd = input()
+            if cmd == 'c':
+                DATA.clear()
+                print('\033[1;36m唤醒次数归零\033[0m\n')
+            elif cmd == 's':
+                stop_logcat = True
+            elif cmd == 'restart':
+                t.restart_app()
+            elif cmd == 'reboot':
+                t.reboot_dev()
+            elif cmd.startswith('p'):
+                t.pull_audio(cmd)
 
-    def __pull_audio(self):
-        pass
 
-    def __restart_app(self):
-        pass
-
-    def __reboot_dev(self):
-        pass
-
-
-def start_app():
-    global only_wakeup, CURRENT_MODULE
+def start_main():
+    global only_wakeup, CURRENT_MODULE, stop_logcat
+    stop_logcat = False
     only_wakeup = False
-    show_mods()
+    t.show_mods()
     try:
         mod = input('\033[1;36m请选择设备类型：\033[0m')
-        CURRENT_MODULE = select_mod(int(mod))
+        CURRENT_MODULE = t.select_mod(int(mod))
         print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
         if CURRENT_MODULE != MOD_XIAODUBOX:
             dev = get_device_list()
@@ -614,14 +622,16 @@ def start_app():
             ACTIVE_DEVICES.append(dev[int(o)])
         for i in range(len(ACTIVE_DEVICES)):
             ThreadLogcat(i)
-    except Exception:
+        InputWatcher()
+    except (KeyboardInterrupt, ValueError, IndexError):
         os.popen('clear').close()
         print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
-        start_app()
+        start_main()
 
 
 if __name__ == '__main__':
     try:
-        start_app()
+        t = Tools()
+        start_main()
     except KeyboardInterrupt:
         print('\n\033[1;31m=======停止=======\033[0m')
