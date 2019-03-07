@@ -43,7 +43,7 @@ def multi_thread():
 
     while int(time.strftime('%H', time.localtime(time.time()))) < 10:
         # while int(time.strftime('%M', time.localtime(time.time()))) < 44:
-        time.sleep(.1)
+        time.sleep(.15)
     for d in drivers:
         try:
             threading.Thread(target=lambda: d.execute_script(
