@@ -1,4 +1,8 @@
 .idea/workspace.xml
 report
 venv
+dist
+build
+com/guo/__pycache__/
+AGR_for_Mac.spec
 com/guo/geckodriver.log

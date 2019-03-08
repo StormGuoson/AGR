@@ -3,6 +3,7 @@ import ast
 import os
 import queue
 import subprocess
+import sys
 import threading
 import time
 
@@ -95,35 +96,6 @@ def _as(_text, _sn):
         DATA['text' + d] = DATA['sn' + d] = ''
 
 
-only_wakeup = False
-write_rec = False
-stop_logcat = False
-SAVE_RESULTS = r'~/Desktop/res.log'
-SAVE_AUDIO = r'~/Desktop/audio'
-td = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-ACTIVE_DEVICES = []  # 激活的设备
-DEVICES_ORDERED = []  # 设备的连接顺序
-UNACTIVE_DEVICES = []  # 休眠的设备
-CURRENT_MODULE = 0  # 当前模式
-ACTIVE_MODULES = [-1, -1, -1, -1, -1]  # 各设备的模式
-
-MOD_AINEMO_LAUNCHER = '小度在家'
-MOD_AINEMO_DEMO = '小度在家demo'
-MOD_CW_LAUNCHER = '小维AI'
-MOD_CW_DEMO = '创维demo'
-MOD_HUAWEI_LAUNCHER = '华为'
-MOD_HUAWEI_DEMO = '华为demo'
-MOD_CW_SHOW = '创维show'
-MOD_Max = 'Max'
-MOD_XIAODUBOX = '小度音箱'
-MOD_XGP = '小钢炮'
-
-MOD_CW_SHOW_DEMO = '创维show—demo'
-
-DATA = {}
-
-
 def write_wakeup(no):
     L.acquire()
     for d in range(len(ACTIVE_DEVICES)):
@@ -146,6 +118,34 @@ def write_wakeup(no):
     L.release()
 
 
+only_wakeup = False
+write_rec = False
+stop_logcat = False
+SAVE_RESULTS = r'~/Desktop/res.log'
+SAVE_AUDIO = r'~/Desktop/audio'
+td = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+ACTIVE_DEVICES = []  # 激活的设备
+DEVICES_ORDERED = []  # 设备的连接顺序
+CURRENT_MODULE = ''  # 当前模式
+ACTIVE_MODULES = [-1, -1, -1, -1, -1]  # 各设备的模式
+
+MOD_AINEMO_LAUNCHER = '小度在家'
+MOD_AINEMO_DEMO = '小度在家demo'
+MOD_CW_LAUNCHER = '小维AI'
+MOD_CW_DEMO = '创维demo'
+MOD_HUAWEI_LAUNCHER = '华为'
+MOD_HUAWEI_DEMO = '华为demo'
+MOD_CW_BOX = '创维盒子'
+MOD_Max = 'Max'
+MOD_XIAODUBOX = '小度音箱'
+MOD_XGP = '小钢炮'
+
+MOD_CW_BOX_DEMO = '创维盒子demo'
+
+DATA = {}
+
+
 class MODULE(object):
     def __init__(self):
         pass
@@ -163,9 +163,9 @@ class MODULE(object):
             self.module_ainemo_demo(_line, no)
         elif _module == MOD_HUAWEI_DEMO:
             self.module_huawei2(_line, no)
-        elif _module == MOD_CW_SHOW:
+        elif _module == MOD_CW_BOX:
             self.module_cw_show(_line, no)
-        elif _module == MOD_CW_SHOW_DEMO:
+        elif _module == MOD_CW_BOX_DEMO:
             self.module_cw_show_demo(_line, no)
         elif _module == MOD_XGP:
             self.module_xgp(_line, no)
@@ -432,7 +432,7 @@ def consume(command, no):
     a subprocess asynchronously without risk on deadlocking.
     """
     print(command)
-    global L
+    global L, stop_logcat
     time.sleep(float(no) / 10.0 * 3)
     td[int(no)] = time.time()
     # Launch the command as subprocess.
@@ -451,7 +451,7 @@ def consume(command, no):
     mod = MODULE()
     while not stdout_reader.eof() or not stderr_reader.eof():
         if stop_logcat:
-            t.kill_self()
+            break
         while not stdout_queue.empty():
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
@@ -464,24 +464,26 @@ def consume(command, no):
             if 'has been replaced' in line or 'eof' in line:
                 print(str(line))
                 continue
-            print('\033[1;31m错误: 设备-' + ACTIVE_DEVICES[int(no)] + repr(line) + '\033[0m')
-            t.kill_self()
+            print('\033[1;31m错误: 设备-' + ACTIVE_DEVICES[int(no)] + str(line) + '\033[0m')
+            stop_logcat = True
+            break
         # Sleep a bit before asking the readers again.
         time.sleep(.1)
+    process.kill()
+    t.kill_self()
     # Let's be tidy and join the threads we've started.
     # stdout_reader.join()
     # stderr_reader.join()
     # Close subprocess' file descriptors.
     # process.stdout.close()
     # process.stderr.close()
+
     # process.kill()
     # kill_self()
 
 
 def get_device_list():
-    global UNACTIVE_DEVICES, DEVICES_ORDERED
     device_sn_list = []
-    UNACTIVE_DEVICES = []
     m_file = os.popen("adb devices")
     for line in m_file.readlines():
         # line = line.encode('utf-8')
@@ -489,10 +491,7 @@ def get_device_list():
             continue
         elif len(line) > 5:
             device_sn_list.append(line.split("\t")[0])
-            UNACTIVE_DEVICES.append(line.split("\t")[0])
     m_file.close()
-    if len(device_sn_list) == 1:
-        DEVICES_ORDERED.append(0)
     return device_sn_list
 
 
@@ -520,14 +519,67 @@ class ThreadLogcat(threading.Thread):
 
 class Tools(object):
 
-    def pull_audio(self, cmd):
-        pass
+    @staticmethod
+    def pull_audio(dir_name):
+        print('\033[1;36m音频导出中......\033[0m\n')
+        dir_name = dir_name.split(' ')
+        if len(dir_name) == 1:
+            dir_name = 'audio'
+        else:
+            dir_name = dir_name[1]
+        for dev in ACTIVE_DEVICES:
+            p = sys.argv[0].split('/')
+            save_path = '/%s/%s/Desktop/audio/%s/%s' % (p[1], p[2], dev, dir_name)
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            if CURRENT_MODULE in (MOD_AINEMO_DEMO, MOD_AINEMO_LAUNCHER):
+                from_path = '/data/log/'
+            elif CURRENT_MODULE in (MOD_HUAWEI_DEMO, MOD_HUAWEI_LAUNCHER, MOD_CW_LAUNCHER, MOD_CW_DEMO):
+                from_path = '/data/local/tmp/aud_rec/'
+            elif CURRENT_MODULE in (MOD_CW_BOX, MOD_CW_BOX_DEMO, MOD_Max):
+                from_path = '/data/local/aud_rec/'
+            else:
+                print('\n\033[1;31m该设备不支持\033[0m')
+                return
+            cmd = 'adb -s %s pull %s %s' % (dev, from_path, save_path)
+            sp = subprocess.Popen(cmd, shell=True,
+                                  stdout=subprocess.PIPE)
+            for line in iter(sp.stdout.readline, 'b'):
+                if line == b'':
+                    break
+                print(line[+2:-3], end='\r')
+        print('\033[1;36m导出完毕\033[0m\n')
 
-    def restart_app(self):
-        pass
+    @staticmethod
+    def restart_app():
+        activities = {
+            MOD_HUAWEI_LAUNCHER: 'com.baidu.launcher/com.baidu.duer.home.activity.HomeActivity',
+            MOD_HUAWEI_DEMO: 'com.baidu.speech.demo/com.baidu.speech.demo.ActivityWakeupAndAsr',
+            MOD_Max: 'com.baidu.muses.vera',
+            MOD_AINEMO_LAUNCHER: 'vulture.app.home/vulture.app.home.HomeActivity',
+            MOD_AINEMO_DEMO: 'com.baidu.speech.demo/com.baidu.speech.demo.ActivityMain',
+            MOD_CW_BOX: 'com.baidu.muses.vera/none'
+        }
+        if CURRENT_MODULE in activities.keys():
+            print('\033[1;36m重启APP\033[0m\n')
+            for dev in ACTIVE_DEVICES:
+                stop = 'adb -s %s shell am force-stop %s' % (dev, activities[CURRENT_MODULE].split('/')[0])
+                start = 'adb -s %s shell am start %s' % (dev, activities[CURRENT_MODULE])
+                threading.Thread(target=lambda: os.popen(stop).close()).start()
+                threading.Thread(target=lambda: os.popen(start).close()).start()
+        else:
+            print('\n\033[1;31m该设备不支持\033[0m')
 
-    def reboot_dev(self):
-        pass
+    @staticmethod
+    def reboot_dev():
+        global stop_logcat
+        stop_logcat = True
+        print('\033[1;36m设备重启\033[0m\n')
+        for dev in ACTIVE_DEVICES:
+            if CURRENT_MODULE == MOD_XIAODUBOX:
+                threading.Thread(target=lambda: os.popen('ssh root@%s reboot' % dev).close()).start()
+            else:
+                threading.Thread(target=lambda: os.popen('adb -s %s reboot' % dev).close()).start()
 
     @staticmethod
     def kill_self():
@@ -555,7 +607,7 @@ class Tools(object):
         if _index == 5:
             return MOD_HUAWEI_DEMO
         if _index == 6:
-            return MOD_CW_SHOW
+            return MOD_CW_BOX
         if _index == 7:
             return MOD_Max
         if _index == 8:
@@ -563,7 +615,7 @@ class Tools(object):
         if _index == 9:
             return MOD_XGP
         if _index == 10:
-            return MOD_CW_SHOW_DEMO
+            return MOD_CW_BOX_DEMO
 
     def show_mods(self):
         for i in range(self.select_mod()):
@@ -585,13 +637,13 @@ class InputWatcher(threading.Thread):
         self.start()
 
     def run(self):
-        global stop_logcat
+        global stop_logcat, only_wakeup
         while not stop_logcat:
             cmd = input()
             if cmd == 'c':
                 DATA.clear()
                 print('\033[1;36m唤醒次数归零\033[0m\n')
-            elif cmd == 's':
+            elif cmd == 'q':
                 stop_logcat = True
             elif cmd == 'restart':
                 t.restart_app()
@@ -599,6 +651,30 @@ class InputWatcher(threading.Thread):
                 t.reboot_dev()
             elif cmd.startswith('p'):
                 t.pull_audio(cmd)
+            elif cmd == 'w':
+                if only_wakeup:
+                    only_wakeup = False
+                    print('\033[1;36m唤醒模式关闭\033[0m\n')
+
+                else:
+                    only_wakeup = True
+                    print('\033[1;36m唤醒模式开启\033[0m\n')
+
+
+def show_help():
+    mhelp = '''
+    
+    
+    
+    
+    
+    
+    
+按回车键继续
+    '''
+    print(mhelp)
+    input()
+    start_main()
 
 
 def start_main():
@@ -606,23 +682,27 @@ def start_main():
     stop_logcat = False
     only_wakeup = False
     t.show_mods()
+    print('输入 h 查看帮助')
     try:
         mod = input('\033[1;36m请选择设备类型：\033[0m')
-        CURRENT_MODULE = t.select_mod(int(mod))
-        print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
-        if CURRENT_MODULE != MOD_XIAODUBOX:
-            dev = get_device_list()
-            print(dev)
-            order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+        if mod == 'h':
+            show_help()
         else:
-            ips = input('\033[1;36m顺序输入设备ip，以逗号分割\033[0m\n')
-            dev = ips.split(',')
-            order = [i for i in range(len(dev))]
-        for o in order:
-            ACTIVE_DEVICES.append(dev[int(o)])
-        for i in range(len(ACTIVE_DEVICES)):
-            ThreadLogcat(i)
-        InputWatcher()
+            CURRENT_MODULE = t.select_mod(int(mod))
+            print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
+            if CURRENT_MODULE != MOD_XIAODUBOX:
+                dev = get_device_list()
+                print(dev)
+                order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+            else:
+                ips = input('\033[1;36m顺序输入设备ip，以逗号分割\033[0m\n')
+                dev = ips.split(',')
+                order = [i for i in range(len(dev))]
+            for o in order:
+                ACTIVE_DEVICES.append(dev[int(o)])
+            for i in range(len(ACTIVE_DEVICES)):
+                ThreadLogcat(i)
+            InputWatcher()
     except (KeyboardInterrupt, ValueError, IndexError):
         os.popen('clear').close()
         print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
