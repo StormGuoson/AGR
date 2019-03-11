@@ -16,7 +16,7 @@ def single_thread():
     driver.execute_script(js)
     handles = driver.window_handles
     while int(time.strftime('%H', time.localtime(time.time()))) < 10:
-        time.sleep(.1)
+        time.sleep(.2)
     for handle in handles:
         driver.switch_to.window(handle)
         driver.execute_script(

@@ -127,11 +127,11 @@ class MainSearch(object):
 
 
 def save_memory(filename, content):
-    mp = filename[:filename.rfind('/')]
+    mp = filename[:filename.rfind(os.sep)]
     if not os.path.exists(mp):
         os.makedirs(mp)
     with open(filename, "a+") as f:
-        f.write(content)
+        f.write(content + '\n')
 
 
 def foo1(_paths):
@@ -153,10 +153,6 @@ def foo1(_paths):
         #     print code
         with open(p) as f:
             for line in f.readlines():
-                try:
-                    line = line.decode(code)
-                except UnicodeDecodeError as e:
-                    print(code)
                 if line.find('intervals') != -1 and line.find('[') != -1:
                     num = int(line[line.find('[') + 1:line.find(']')])
                     if num % 2 == 0:
@@ -369,9 +365,65 @@ def foo9(paths):
     # print(finalMsg)
 
 
+def format_name(paths):
+    for p in paths:
+        old_name = p[p.rfind(os.sep) + 1:]
+        new_name = old_name
+        if len(old_name) == 5:
+            new_name = '00' + old_name
+        elif len(old_name) == 6:
+            new_name = '0' + old_name
+        if old_name != new_name:
+            new_path = os.path.join(os.path.dirname(p), new_name)
+            os.rename(p, new_path)
+
+
+def put_here(paths):
+    # 创建指令词路径
+    for d in order_spell_lists:
+        cur_dir = os.path.join(result_path, d)
+        os.makedirs(cur_dir)
+
+    t_dir = ''
+    index = 0
+    for p in paths:
+        cur_dir = os.path.dirname(p)
+        last_dir = cur_dir[cur_dir.rfind(os.sep) + 1:]  # 上一级目录
+        if t_dir != last_dir:
+            index = 0
+        t_dir = last_dir
+        result_dir = os.path.join(result_path, order_spell_lists[index])  # 结果存放目录
+        txt_dir = os.path.join(result_dir, order_spell_lists[index] + '.txt')  # 保存结果的文本路径
+        aud_dir = os.path.join(result_dir, (order_spell_lists[index] + '-' + last_dir + '.pcm'))  # 音频结果路径
+        aud_name = aud_dir[aud_dir.rfind(os.sep) + 1:]  # 音频结果名
+        save_memory(txt_dir, '%s:%s:10' % (aud_name, order_cn_lists[index]))
+        os.rename(p, aud_dir)
+
+        index += 1
+
+
+order_cn_lists = ('播放列表', '循环播放', '查看歌词', '打开音乐', '打开导航',
+                  '回到首页', '加入收藏', '屏幕亮一点', '屏幕暗一点', '上一页',
+                  '下一页', '回主页', '打开车窗', '关闭车窗', '温度降低',
+                  '温度升高', '声音大一点', '声音小一点', '小度小度', '你好哈弗',
+                  '返回', '随机播放', '顺序播放', '单曲循环', '躲避拥堵',
+                  '导航声音大一点', '导航声音小一点', '退出')
+order_spell_lists = ('bofangliebiao', 'xunhuanbofang', 'chankangeci', 'dakaiyinyue', 'dakaidaohang',
+                     'huidaoshouye', 'jiarushoucang', 'pingmuliangyidian', 'pingmuanyidian', 'shangyiye',
+                     'xiayiye', 'huizhuye', 'dakaichechuang', 'guanbichechuang', 'jiangdiwendu',
+                     'wendushenggao', 'shengyindayidian', 'shengyinxiaoyidian', 'xiaoduxiaodu', 'nihaohafu',
+                     'fanhui', 'suijibofang', 'shunxubofang', 'danquxunhuan', 'duobiyongdu',
+                     'daohangshengyindayidian', 'daohangshengyinxiaoyidian', 'tuichu')
+
 if __name__ == '__main__':
-    _path = r'/Users/baidu/Desktop/pack_4biaozhu'
-    t = MainSearch(_path, u'[\S\s]+')
-    t.start()
-    foo9(t.get_paths())
-    # foo8(t.get_paths())
+    result_path = '/Users/baidu/Desktop/result'
+    _path = r'/Users/baidu/Downloads/2019-2-26'
+    main = MainSearch(_path, u'[\S\s]+.pcm')
+
+    main.start()
+    format_name(main.get_paths())
+
+    main.start()
+    path = main.get_paths()
+    path = sorted(path)
+    put_here(path)

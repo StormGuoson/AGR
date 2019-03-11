@@ -662,18 +662,23 @@ class InputWatcher(threading.Thread):
 
 
 def show_help():
-    mhelp = '''
+    os.system('clear')
+    mhelp = '''选好设备类型、设备连接顺序后可进行导音频、重启等操作,在终端中输入指令后按回车键即可
     
+    输入 w        :切换唤醒/识别模式
+    输入 c        :归零唤醒次数
+    输入 reboot   :重启设备
+    输入 restart  :重启APP
+    输入 q        :退出程序
+    输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，
+                        name缺省值为'audio'，支持多台设备音频同时导出
     
-    
-    
-    
-    
-    
-按回车键继续
+百度Hi：郭玉强
+\033[1;36m按回车键继续\033[0m
     '''
     print(mhelp)
     input()
+    os.system('clear')
     start_main()
 
 
@@ -687,6 +692,8 @@ def start_main():
         mod = input('\033[1;36m请选择设备类型：\033[0m')
         if mod == 'h':
             show_help()
+        elif mod == 'q':
+            t.kill_self()
         else:
             CURRENT_MODULE = t.select_mod(int(mod))
             print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
@@ -704,13 +711,14 @@ def start_main():
                 ThreadLogcat(i)
             InputWatcher()
     except (KeyboardInterrupt, ValueError, IndexError):
-        os.popen('clear').close()
+        os.system('clear')
         print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
         start_main()
 
 
 if __name__ == '__main__':
     try:
+        os.system('clear')
         t = Tools()
         start_main()
     except KeyboardInterrupt:

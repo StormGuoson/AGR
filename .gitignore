@@ -3,6 +3,7 @@ report
 venv
 dist
 build
+others
 com/guo/__pycache__/
 AGR_for_Mac.spec
 com/guo/geckodriver.log
