@@ -120,7 +120,8 @@ def write_wakeup(no):
 
 only_wakeup = False
 write_rec = False
-stop_logcat = False
+stop_self = False
+restart_self = False
 SAVE_RESULTS = r'~/Desktop/res.log'
 SAVE_AUDIO = r'~/Desktop/audio'
 td = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -140,8 +141,8 @@ MOD_CW_BOX = '创维盒子'
 MOD_Max = 'Max'
 MOD_XIAODUBOX = '小度音箱'
 MOD_XGP = '小钢炮'
-
 MOD_CW_BOX_DEMO = '创维盒子demo'
+MOD_AINEMO_1S = '小度在家1S'
 
 DATA = {}
 
@@ -173,6 +174,25 @@ class MODULE(object):
             self.module_xdbox(_line, no)
         elif _module == MOD_Max:
             self.module_max(_line, no)
+        elif _module == MOD_AINEMO_1S:
+            self.module_AINEMO_1S(_line, no)
+
+    # 小度在家1S
+    @staticmethod
+    def module_AINEMO_1S(line, no):
+        if line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
+            write_wakeup(no)
+            if only_wakeup:
+                os.popen('adb -s %s shell input tap 400 400' % ACTIVE_DEVICES[int(no)]).close()
+        elif line.find("SpeechCallback") != -1 and line.find("final") != -1:
+            line = line[line.find('{'):]
+            line = ast.literal_eval(line)
+            text = line['best_result']
+            sn = line['origin_result']['sn']
+            corpus = str(line['origin_result']['corpus_no'])
+            DATA['sn' + no] = sn + '_' + corpus
+            DATA['text' + no] = text
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
     # 创维demo识别
     @staticmethod
@@ -432,7 +452,7 @@ def consume(command, no):
     a subprocess asynchronously without risk on deadlocking.
     """
     print(command)
-    global L, stop_logcat
+    global L, stop_self
     time.sleep(float(no) / 10.0 * 3)
     td[int(no)] = time.time()
     # Launch the command as subprocess.
@@ -450,7 +470,7 @@ def consume(command, no):
     print(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     mod = MODULE()
     while not stdout_reader.eof() or not stderr_reader.eof():
-        if stop_logcat:
+        if stop_self or restart_self:
             break
         while not stdout_queue.empty():
             line = stdout_queue.get().decode("utf-8", errors="ignore")
@@ -465,12 +485,19 @@ def consume(command, no):
                 print(str(line))
                 continue
             print('\033[1;31m错误: 设备-' + ACTIVE_DEVICES[int(no)] + str(line) + '\033[0m')
-            stop_logcat = True
+            stop_self = True
             break
         # Sleep a bit before asking the readers again.
         time.sleep(.1)
     process.kill()
-    t.kill_self()
+    if no == '0':
+        if stop_self:
+            time.sleep(.5)
+            t.kill_self()
+        elif restart_self:
+            print('\n\033[1;31m=======停止=======\033[0m')
+            time.sleep(.3)
+            start_main()
     # Let's be tidy and join the threads we've started.
     # stdout_reader.join()
     # stderr_reader.join()
@@ -519,8 +546,7 @@ class ThreadLogcat(threading.Thread):
 
 class Tools(object):
 
-    @staticmethod
-    def pull_audio(dir_name):
+    def pull_audio(self, dir_name):
         print('\033[1;36m音频导出中......\033[0m\n')
         dir_name = dir_name.split(' ')
         if len(dir_name) == 1:
@@ -534,6 +560,8 @@ class Tools(object):
                 os.makedirs(save_path)
             if CURRENT_MODULE in (MOD_AINEMO_DEMO, MOD_AINEMO_LAUNCHER):
                 from_path = '/data/log/'
+            elif CURRENT_MODULE in (MOD_AINEMO_1S,):
+                from_path = 'mnt/sdcard/aud_rec/'
             elif CURRENT_MODULE in (MOD_HUAWEI_DEMO, MOD_HUAWEI_LAUNCHER, MOD_CW_LAUNCHER, MOD_CW_DEMO):
                 from_path = '/data/local/tmp/aud_rec/'
             elif CURRENT_MODULE in (MOD_CW_BOX, MOD_CW_BOX_DEMO, MOD_Max):
@@ -542,13 +570,17 @@ class Tools(object):
                 print('\n\033[1;31m该设备不支持\033[0m')
                 return
             cmd = 'adb -s %s pull %s %s' % (dev, from_path, save_path)
-            sp = subprocess.Popen(cmd, shell=True,
-                                  stdout=subprocess.PIPE)
-            for line in iter(sp.stdout.readline, 'b'):
-                if line == b'':
-                    break
-                print(line[+2:-3], end='\r')
-        print('\033[1;36m导出完毕\033[0m\n')
+            threading.Thread(target=self._pull, args=(cmd,)).start()
+        # print('\033[1;36m导出完毕\033[0m\n')
+
+    @staticmethod
+    def _pull(cmd):
+        sp = subprocess.Popen(cmd, shell=True,
+                              stdout=subprocess.PIPE)
+        for line in iter(sp.stdout.readline, 'b'):
+            if line == b'':
+                break
+            print(line, end='\r')
 
     @staticmethod
     def restart_app():
@@ -558,22 +590,21 @@ class Tools(object):
             MOD_Max: 'com.baidu.muses.vera',
             MOD_AINEMO_LAUNCHER: 'vulture.app.home/vulture.app.home.HomeActivity',
             MOD_AINEMO_DEMO: 'com.baidu.speech.demo/com.baidu.speech.demo.ActivityMain',
-            MOD_CW_BOX: 'com.baidu.muses.vera/none'
+            MOD_CW_BOX: 'com.baidu.muses.vera/none',
+            MOD_AINEMO_1S: 'com.baidu.launcher/com.baidu.duershow.launcher.home.ui.activity.HomeActivity'
         }
         if CURRENT_MODULE in activities.keys():
             print('\033[1;36m重启APP\033[0m\n')
             for dev in ACTIVE_DEVICES:
-                stop = 'adb -s %s shell am force-stop %s' % (dev, activities[CURRENT_MODULE].split('/')[0])
-                start = 'adb -s %s shell am start %s' % (dev, activities[CURRENT_MODULE])
-                threading.Thread(target=lambda: os.popen(stop).close()).start()
-                threading.Thread(target=lambda: os.popen(start).close()).start()
+                stop = 'adb -s %s shell am force-stop %s 2>/dev/null' % (dev, activities[CURRENT_MODULE].split('/')[0])
+                start = 'adb -s %s shell am start %s 2>/dev/null' % (dev, activities[CURRENT_MODULE])
+                os.popen(stop).close()
+                os.popen(start).close()
         else:
             print('\n\033[1;31m该设备不支持\033[0m')
 
     @staticmethod
     def reboot_dev():
-        global stop_logcat
-        stop_logcat = True
         print('\033[1;36m设备重启\033[0m\n')
         for dev in ACTIVE_DEVICES:
             if CURRENT_MODULE == MOD_XIAODUBOX:
@@ -583,7 +614,7 @@ class Tools(object):
 
     @staticmethod
     def kill_self():
-        print('\n\033[1;31m=======停止=======\033[0m')
+        print('\n\033[1;31m=======退出=======\033[0m')
         pids = psutil.pids()
         for pid in pids:
             if psutil.Process(pid).name() == 'Python':
@@ -592,7 +623,7 @@ class Tools(object):
     @staticmethod
     def select_mod(_index=-1):
         if _index == -1:
-            return 11
+            return 12
 
         if _index == 0:
             return MOD_AINEMO_LAUNCHER
@@ -616,6 +647,8 @@ class Tools(object):
             return MOD_XGP
         if _index == 10:
             return MOD_CW_BOX_DEMO
+        if _index == 11:
+            return MOD_AINEMO_1S
 
     def show_mods(self):
         for i in range(self.select_mod()):
@@ -637,17 +670,20 @@ class InputWatcher(threading.Thread):
         self.start()
 
     def run(self):
-        global stop_logcat, only_wakeup
-        while not stop_logcat:
+        global stop_self, only_wakeup, restart_self
+        while not stop_self and not restart_self:
             cmd = input()
             if cmd == 'c':
                 DATA.clear()
                 print('\033[1;36m唤醒次数归零\033[0m\n')
             elif cmd == 'q':
-                stop_logcat = True
+                stop_self = True
+            elif cmd == 's':
+                restart_self = True
             elif cmd == 'restart':
                 t.restart_app()
             elif cmd == 'reboot':
+                restart_self = True
                 t.reboot_dev()
             elif cmd.startswith('p'):
                 t.pull_audio(cmd)
@@ -670,6 +706,7 @@ def show_help():
     输入 reboot   :重启设备
     输入 restart  :重启APP
     输入 q        :退出程序
+    输入 s        :停止logcat并回到选择界面
     输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，
                         name缺省值为'audio'，支持多台设备音频同时导出
     
@@ -683,8 +720,9 @@ def show_help():
 
 
 def start_main():
-    global only_wakeup, CURRENT_MODULE, stop_logcat
-    stop_logcat = False
+    global only_wakeup, CURRENT_MODULE, stop_self, restart_self
+    ACTIVE_DEVICES.clear()
+    stop_self = restart_self = False
     only_wakeup = False
     t.show_mods()
     print('输入 h 查看帮助')
@@ -710,7 +748,7 @@ def start_main():
             for i in range(len(ACTIVE_DEVICES)):
                 ThreadLogcat(i)
             InputWatcher()
-    except (KeyboardInterrupt, ValueError, IndexError):
+    except (ValueError, IndexError):
         os.system('clear')
         print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
         start_main()
@@ -722,4 +760,7 @@ if __name__ == '__main__':
         t = Tools()
         start_main()
     except KeyboardInterrupt:
-        print('\n\033[1;31m=======停止=======\033[0m')
+        stop_self = True
+        # print('\n\033[1;31m=======退出=======\033[0m')
+    except Exception as e:
+        print(repr(e))
