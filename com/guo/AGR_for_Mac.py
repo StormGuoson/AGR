@@ -476,13 +476,13 @@ def consume(command, no):
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
                 mod.main_doing(line, CURRENT_MODULE, no)
-            except Exception as e:
-                print('\033[1;31m错误: ' + repr(e) + '\033[0m')
+            except Exception as e1:
+                print('\033[1;31m错误: ' + repr(e1) + '\033[0m')
                 # frame.txt_log.write(repr(e))
         while not stderr_queue.empty():
             line = stderr_queue.get().decode('utf-8')
-            if 'has been replaced' in line or 'eof' in line:
-                print(str(line))
+            if 'has been replaced' in line or 'EOF' in line:
+                # print(str(line))
                 continue
             print('\033[1;31m错误: 设备-' + ACTIVE_DEVICES[int(no)] + str(line) + '\033[0m')
             stop_self = True
@@ -546,7 +546,11 @@ class ThreadLogcat(threading.Thread):
 
 class Tools(object):
 
+    def __init__(self):
+        self.finish_count = 0
+
     def pull_audio(self, dir_name):
+        self.finish_count = 0
         print('\033[1;36m音频导出中......\033[0m\n')
         dir_name = dir_name.split(' ')
         if len(dir_name) == 1:
@@ -570,17 +574,22 @@ class Tools(object):
                 print('\n\033[1;31m该设备不支持\033[0m')
                 return
             cmd = 'adb -s %s pull %s %s' % (dev, from_path, save_path)
-            threading.Thread(target=self._pull, args=(cmd,)).start()
-        # print('\033[1;36m导出完毕\033[0m\n')
+            threading.Thread(target=self.__pull, args=(cmd, dev)).start()
 
-    @staticmethod
-    def _pull(cmd):
+    def __pull(self, cmd, dev):
         sp = subprocess.Popen(cmd, shell=True,
                               stdout=subprocess.PIPE)
         for line in iter(sp.stdout.readline, 'b'):
+            if b'No such file or directory' in line:
+                print('\n\033[1;31m设备 %s 没有音频\033[0m' % dev)
+                self.finish_count += 1
+                break
             if line == b'':
+                self.finish_count += 1
                 break
             print(line, end='\r')
+        if self.finish_count == len(ACTIVE_DEVICES):
+            print('\033[1;36m\n导出完毕\033[0m\n')
 
     @staticmethod
     def restart_app():
