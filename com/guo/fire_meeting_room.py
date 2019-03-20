@@ -4,25 +4,6 @@ import time
 from selenium import webdriver
 
 
-def single_thread():
-    driver = webdriver.Firefox()
-    driver.get('http://meeting.baidu.com/index.html#/home')
-    driver.find_element_by_id('username').send_keys('v_guoyuqiang')
-    driver.find_element_by_id('password').send_keys('Gyq1994719')
-    driver.find_element_by_id('emailLogin').click()
-    js = 'window.open("http://meeting.baidu.com/index.html#/home");'
-    driver.execute_script(js)
-    driver.execute_script(js)
-    driver.execute_script(js)
-    handles = driver.window_handles
-    while int(time.strftime('%H', time.localtime(time.time()))) < 10:
-        time.sleep(.2)
-    for handle in handles:
-        driver.switch_to.window(handle)
-        driver.execute_script(
-            'window.document.getElementsByClassName("el-button btn-box btn-book el-button--default")[0].click();')
-
-
 def get_url():
     driver = webdriver.Firefox()
     drivers.append(driver)
@@ -43,7 +24,7 @@ def multi_thread():
 
     while int(time.strftime('%H', time.localtime(time.time()))) < 10:
         # while int(time.strftime('%M', time.localtime(time.time()))) < 44:
-        time.sleep(.15)
+        time.sleep(.2)
     for d in drivers:
         try:
             threading.Thread(target=lambda: d.execute_script(

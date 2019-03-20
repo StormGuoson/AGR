@@ -197,40 +197,20 @@ class MODULE(object):
     # 创维demo识别
     @staticmethod
     def module_chuangwei_demo(line, no):
-        # if line.find('wakeup_time') != -1:
-        #     write_wakeup( no)
-        # if line.find("ASREngine") != -1 and line.find('origin_result') != -1 and line.find('corpus_no') != -1:
-        #     line = ast.literal_eval(line[line.find('{'):])
-        #     corpus = str(line['origin_result']['corpus_no'])
-        #     DATA['sn' + no] = corpus
-        # elif line.find('--final') != -1:
-        #     text = line[line.find('final: ') + 7: -1]
-        #     DATA['text' + no] = text
-        #     auto_set(text, DATA['sn' + no])
-        # elif line.find('wakeup_time') != -1 and line.find('result') != -1:
-        #     write_wakeup(no)
-        if line.find('final_result') != -1 and line.find('sn') != -1:
-            line = ast.literal_eval(line[line.find('{'):])
-            text = line['results_recognition'][0]
-            sn = line['origin_result']['sn']
-            corpus = str(line['origin_result']['corpus_no'])
-            DATA['sn' + no] = sn + "_" + corpus
-            DATA['text' + no] = text
-            auto_set(text, sn)
-
+        if 'VoiceAndTouchWakeUpObserver onLocationDetected location' in line:
+            line = line[line.rfind(':')+1:-1]
+            print(line)
+            DATA['sn' + no] += 'duer=' + line + '_'
     # 创维launcher识别
     @staticmethod
     def module_chuangwei_launcher(line, no):
-        if 'wakeup_time' in line and 'result' in line:
-            write_wakeup(no)
-        elif line.find(u'SpeechCallback') != -1 and line.find('final_result') != -1 and line.find('corpus') != -1:
-            # print line
-            line = ast.literal_eval(line[line.find('{'):])
-            DATA['text' + no] = line['best_result']
-            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
-            auto_set(DATA['text' + no], DATA['sn' + no])
+        if 'wakeup_dir' in line:
+            ang = line[line.find('wakeup_dir=') + 11: line.rfind(',')]
+            print(ang)
+            DATA['sn' + no] += 'speech=' + ang + '_'
 
-    # 华为产品包 识别
+            # 华为产品包 识别
+
     @staticmethod
     def module_huawei_launcher(line, no):
         if line.find('SpeechCallback') != -1 and line.find('wakeup_time') != -1:
@@ -346,16 +326,16 @@ class MODULE(object):
             corpus = str(line['origin_result']['corpus_no'])
             sn = line['origin_result']['sn']
             DATA['text' + no] = text
-            DATA['sn' + no] = sn + '_' + corpus
+            DATA['sn' + no] += sn + '_' + corpus
             auto_set(DATA['text' + no], DATA['sn' + no])
-        elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
-            line = ast.literal_eval(line[line.find('{'):])
-            text = line['result']['word'][0]
-            corpus = str(line['corpus_no'])
-            sn = line['sn']
-            DATA['text' + no] = text
-            DATA['sn' + no] = sn + "_" + corpus
-            auto_set(DATA['text' + no], DATA['sn' + no])
+        # elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
+        #     line = ast.literal_eval(line[line.find('{'):])
+        #     text = line['result']['word'][0]
+        #     corpus = str(line['corpus_no'])
+        #     sn = line['sn']
+        #     DATA['text' + no] = text
+        #     DATA['sn' + no] += sn + "_" + corpus
+        #     auto_set(DATA['text' + no], DATA['sn' + no])
 
         # audio:
         # if line.find('kwd_detect') != -1:
@@ -447,7 +427,12 @@ def consume(command, no):
         while not stdout_queue.empty():
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
-                mod.main_doing(line, CURRENT_MODULE, no)
+                if 'audio_wrap.log' in command:
+                    mod.module_chuangwei_launcher(line, no)
+                elif '/dcssdk.log' in command:
+                    mod.module_chuangwei_demo(line, no)
+                else:
+                    mod.main_doing(line, CURRENT_MODULE, no)
             except Exception as e1:
                 print('\033[1;31m错误: ' + repr(e1) + '\033[0m')
                 # frame.txt_log.write(repr(e))
@@ -508,7 +493,11 @@ class ThreadLogcat(threading.Thread):
         # _start_d = get_device_list()[CURRENT_DEVICE]
         _d = ACTIVE_DEVICES[self.dev]
         if CURRENT_MODULE == MOD_XIAODUBOX:
-            consume('ssh root@%s tail -F /tmp/speechsdk.log' % _d, str(self.dev))
+            threading.Thread(target=consume,
+                             args=('ssh root@%s tail -F /tmp/speechsdk.log' % _d, str(self.dev),)).start()
+            threading.Thread(target=consume,
+                             args=('ssh root@%s tail -F /tmp/audio_wrap.log' % _d, str(self.dev))).start()
+            threading.Thread(target=consume, args=('ssh root@%s tail -F /tmp/dcssdk.log' % _d, str(self.dev))).start()
         elif CURRENT_MODULE == MOD_XGP:
             consume('adb -s %s shell tail -F /tmp/speechsdk.log' % _d, str(self.dev))
         else:
@@ -522,7 +511,6 @@ class Tools(object):
         self.finish_count = 0
 
     def pull_audio(self, dir_name):
-        DATA.clear()
         self.finish_count = 0
         print('\033[1;36m音频导出中......\033[0m\n')
         dir_name = dir_name.split(' ')
@@ -566,7 +554,6 @@ class Tools(object):
 
     @staticmethod
     def restart_app():
-        DATA.clear()
         activities = {
             MOD_CW_LAUNCHER: 'com.skyworth.lafite.srtnj.speechserver/'
                              'com.skyworth.lafite.srtnj.setting.SkyLafiteSettingHomeActivity',
@@ -666,7 +653,6 @@ class InputWatcher(threading.Thread):
                 stop_self = True
             elif cmd == 's':
                 restart_self = True
-                DATA.clear()
             elif cmd == 'restart':
                 t.restart_app()
             elif cmd == 'reboot':

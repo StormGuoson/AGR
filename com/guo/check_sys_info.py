@@ -79,7 +79,7 @@ def consume(command):
 
 
 def kill_self():
-    print('\n\033[1;31m=======停止=======\033[0m')
+    print('\n\033[1;31m=======确认完毕=======\033[0m')
     pids = psutil.pids()
     for pid in pids:
         if psutil.Process(pid).name() == 'Python':
@@ -104,45 +104,85 @@ def check_by_logcat(line):
     if None not in data.values():
         is_finish = True
         return
-    if 'VERSION_NAME:' in line:
-        sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
-        data['sdk版本号'] = sdk_ver
-    elif 'SHA1' in line:
-        if data['VAD引擎版本号'] is None:
-            line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
-            data['VAD引擎版本号'] = line
+    if current_type == 'cwbox':
+        if 'VERSION_NAME:' in line:
+            sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
+            data['sdk版本号'] = sdk_ver
+        elif 'SHA1' in line:
+            if data['唤醒引擎版本'] is None:
+                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+                data['唤醒引擎版本'] = line
+            if data['VAD引擎版本号'] is None:
+                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+                data['VAD引擎版本号'] = line
+    elif current_type == 'ainemo':
+        if 'SPIL' in line:
+            line = line[line.rfind(': ') + 2:-1]
+            data['信号so版本'] = line
+        elif 'VERSION_NAME:' in line:
+            sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
+            data['sdk版本号'] = sdk_ver
+        elif '\"pid\"' in line and 'startAsr params' in line:
+            line = line[line.find('pid'):]
+            line = line[5:line.find(',')]
+            data['pid'] = line
 
 
-def check_by_m():
-    sys_info = os.popen('adb shell getprop | grep display')
-    t = sys_info.readlines()[1]
-    t = t[t.find(']: [') + 4:t.rfind(']')]
-    data['系统版本号'] = t
-    sys_info.close()
-    lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
-    data['信号库md5'] = lib.readlines()[0].split()[0]
-    lib.close()
-    wp = os.popen('adb shell md5sum /data/data/com.baidu.speech.demo/lib/lib_esis_wp.pkg.so')
-    data['唤醒资源md5'] = wp.readlines()[0].split()[0]
-    wp.close()
-    vad = os.popen('adb shell md5sum /data/data/com.baidu.speech.demo/lib/libesis_vad.pkg.so')
-    data['VAD资源md5'] = vad.readlines()[0].split()[0]
-    vad.close()
+def static_check(t):
+    if t == 'cwbox':
+        sys_info = os.popen('adb shell getprop | grep display')
+        t = sys_info.readlines()[1]
+        t = t[t.find(']: [') + 4:t.rfind(']')]
+        data['系统版本号'] = t
+        sys_info.close()
+        lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
+        data['信号库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+        wp = os.popen('adb shell md5sum /data/data/com.baidu.muses.vera/files/speechres/lib_esis_wp.pkg.so')
+        data['唤醒资源md5'] = wp.readlines()[0].split()[0]
+        wp.close()
+        vad = os.popen('adb shell md5sum /data/data/com.baidu.muses.vera/files/speechres/libesis_vad.pkg.so')
+        data['VAD资源md5'] = vad.readlines()[0].split()[0]
+        vad.close()
+    elif t == 'ainemo':
+        lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
+        data['信号库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+
+
+def select_type(t):
+    global data
+    print('收集信息中...')
+    devs = get_device_list()
+    print(devs[0])
+
+    if t == 'cwbox':
+        data = {
+            'sdk版本号': None,
+            '系统版本号': None,
+            '信号库md5': None,
+            '唤醒引擎版本': None,
+            '唤醒资源md5': None,
+            'VAD引擎版本号': None,
+            'VAD资源md5': None
+        }
+        static_check(t)
+    elif t == 'ainemo':
+        data = {
+            '信号so版本': None,
+            '信号库md5': None,
+            'sdk版本号': None,
+            '唤醒引擎版本': None,
+            'vad引擎版本': None,
+            'pid': None,
+            'url': None
+        }
+
+    consume('adb -s %s logcat -v time' % devs[0])
 
 
 if __name__ == '__main__':
-    print('收集信息中...')
-    data = {
-        'sdk版本号': None,
-        '系统版本号': None,
-        '信号库md5': None,
-        '唤醒引擎版本': 'None',
-        '唤醒资源md5': None,
-        'VAD引擎版本号': None,
-        'VAD资源md5': None
-    }
+    data = {}
+    current_type = 'cwbox'
     is_finish = False
-    devs = get_device_list()
-    print(devs[0])
-    check_by_m()
-    consume('adb -s %s logcat' % devs[0])
+    select_type(current_type)
