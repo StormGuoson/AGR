@@ -48,8 +48,7 @@ def auto_set(_text, _sn):
 
 
 def _as(_text, _sn):
-    print(_text + '\r')
-    print(_sn + '\r')
+    print(_text + '\t' + _sn)
     for d in range(len(ACTIVE_DEVICES)):
         d = str(d)
         if ('text' + d) not in DATA:
@@ -180,18 +179,27 @@ class MODULE(object):
     # 小度在家1S
     @staticmethod
     def module_AINEMO_1S(line, no):
-        if line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
+        if 'asr_reject' in line and 'state' in line and 'asr_result':
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            reject = line['asr_reject']
+            if reject == 0:
+                reject = 'True'
+            else:
+                reject = 'False'
+            state = line['state']
+            DATA['sn' + no] = '&%s&%s' % (reject, state)
+        if 'wakeup_time' in line and 'result' in line:
             write_wakeup(no)
-            # if only_wakeup:
-            #     os.popen('adb -s %s shell input tap 400 400' % ACTIVE_DEVICES[int(no)]).close()
-        elif line.find("SpeechCallback") != -1 and line.find("final") != -1:
-            line = line[line.find('{'):]
-            line = ast.literal_eval(line)
-            text = line['best_result']
-            sn = line['origin_result']['sn']
-            corpus = str(line['origin_result']['corpus_no'])
-            DATA['sn' + no] = sn + '_' + corpus
-            DATA['text' + no] = text
+        elif 'final_result' in line and 'results_recognition' in line and (
+                'finalResult' in line or 'SpeechCallback' in line):
+            if u'极客' in line:
+                return
+            if not DATA['sn' + no]:
+                DATA['sn' + no] = ''
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            DATA['text' + no] = line['results_recognition'][0]
+            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no']) + DATA[
+                'sn' + no]
             auto_set(DATA['text' + no], DATA['sn' + no])
 
     # 创维demo识别
@@ -251,18 +259,27 @@ class MODULE(object):
     # 小鱼识别
     @staticmethod
     def module_ainemo(line, no):
-        if line.find('wakeup_time') != -1 and line.find('SpeechCallback') != -1:
+        if 'asr_reject' in line and 'state' in line and 'asr_result':
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            reject = line['asr_reject']
+            if reject == 0:
+                reject = 'True'
+            else:
+                reject = 'False'
+            state = line['state']
+            DATA['sn' + no] = '&%s&%s' % (reject, state)
+        if 'wakeup_time' in line and 'SpeechCallback' in line:
             write_wakeup(no)
-            if only_wakeup:
-                os.popen('adb -s %s shell input tap 400 400' % ACTIVE_DEVICES[int(no)]).close()
-        elif line.find("results_recognition") != -1 and line.find("final_result") != -1 and (
+        elif 'final_result' in line and 'results_recognition' in line and (
                 'finalResult' in line or 'SpeechCallback' in line):
-            line = ast.literal_eval(line[line.find('{'):])
-            text = line['results_recognition'][0]
-            sn = line['origin_result']['sn']
-            corpus = str(line['origin_result']['corpus_no'])
-            DATA['text' + no] = text
-            DATA['sn' + no] = sn + '_' + corpus
+            if u'极客' in line:
+                return
+            if not DATA['sn' + no]:
+                DATA['sn' + no] = ''
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            DATA['text' + no] = line['results_recognition'][0]
+            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no']) + DATA[
+                'sn' + no]
             auto_set(DATA['text' + no], DATA['sn' + no])
 
     @staticmethod
@@ -603,7 +620,7 @@ class Tools(object):
         print('\n\033[1;31m=======退出=======\033[0m')
         pids = psutil.pids()
         for pid in pids:
-            if psutil.Process(pid).name() == 'Python':
+            if psutil.Process(pid).name() in sys.argv[0]:
                 psutil.Process(pid).kill()
 
     @staticmethod
@@ -693,7 +710,7 @@ def show_help():
     输入 reboot   :重启设备
     输入 restart  :重启APP
     输入 q        :退出程序
-    输入 s        :停止logcat并回到选择界面
+    输入 s        :停止当前模式并回到选择界面
     输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，
                         name缺省值为'audio'，支持多台设备音频同时导出
     

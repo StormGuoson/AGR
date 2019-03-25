@@ -105,14 +105,14 @@ def check_by_logcat(line):
         is_finish = True
         return
     if current_type == 'cwbox':
-        if 'VERSION_NAME:' in line:
+        if 'ASR SDK VERSION_NAME:' in line:
             sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
             data['sdk版本号'] = sdk_ver
         elif 'SHA1' in line:
             if data['唤醒引擎版本'] is None:
                 line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
                 data['唤醒引擎版本'] = line
-            if data['VAD引擎版本号'] is None:
+            elif data['VAD引擎版本号'] is None:
                 line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
                 data['VAD引擎版本号'] = line
     elif current_type == 'ainemo':
