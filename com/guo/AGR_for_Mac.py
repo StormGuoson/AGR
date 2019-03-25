@@ -764,6 +764,6 @@ if __name__ == '__main__':
         os.system('clear')
         start_main()
     except KeyboardInterrupt:
-        t.kill_self()
+        pass
     except Exception as e:
         print(repr(e))
