@@ -316,7 +316,7 @@ class MODULE(object):
         if line.find("wakeup_time") != -1 and line.find("result") != -1:
             write_wakeup(no)
         # elif line.find('final_result') != -1 and line.find('finalResult') != -1:
-        elif line.find('final_result') != -1:
+        elif line.find('final_result') != -1 and ('SpeechCallback' in line or 'finalResult' in line):
             line = ast.literal_eval(line[line.find('{'):])
             text = line['results_recognition'][0]
             corpus = str(line['origin_result']['corpus_no'])
@@ -441,7 +441,6 @@ def consume(command, no):
     Example of how to consume standard output and standard error of
     a subprocess asynchronously without risk on deadlocking.
     """
-    print(command)
     global L, stop_self
     time.sleep(float(no) / 10.0 * 3)
     td[int(no)] = time.time()
