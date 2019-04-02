@@ -164,7 +164,7 @@ class MODULE(object):
         elif _module == MOD_HUAWEI_DEMO:
             self.module_huawei2(_line, no)
         elif _module == MOD_CW_BOX:
-            self.module_cw_show(_line, no)
+            self.module_cw_box(_line, no)
         elif _module == MOD_CW_BOX_DEMO:
             self.module_cw_show_demo(_line, no)
         elif _module == MOD_XGP:
@@ -310,12 +310,13 @@ class MODULE(object):
             DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
             auto_set(DATA['text' + no], DATA['sn' + no])
 
-    # 创维show
+    # 创维box
     @staticmethod
-    def module_cw_show(line, no):
+    def module_cw_box(line, no):
         if line.find("wakeup_time") != -1 and line.find("result") != -1:
             write_wakeup(no)
-        elif line.find('final_result') != -1 and line.find('SpeechCallback') != -1:
+        # elif line.find('final_result') != -1 and line.find('finalResult') != -1:
+        elif line.find('final_result') != -1:
             line = ast.literal_eval(line[line.find('{'):])
             text = line['results_recognition'][0]
             corpus = str(line['origin_result']['corpus_no'])
@@ -366,7 +367,7 @@ class MODULE(object):
             DATA['sn' + no] = sn + '_' + corpus
             auto_set(DATA['text' + no], DATA['sn' + no])
         elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
-            line = ast.literal_eval(line[line.find('{'):])
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}')+1])
             text = line['result']['word'][0]
             corpus = str(line['corpus_no'])
             sn = line['sn']
@@ -569,7 +570,7 @@ class Tools(object):
     def __pull(self, cmd, dev):
         sp = subprocess.Popen(cmd, shell=True,
                               stdout=subprocess.PIPE)
-        for line in iter(sp.stdout.readline, 'b'):
+        for line in iter(sp.stdout.readline, ''):
             if b'No such file or directory' in line:
                 print('\n\033[1;31m设备 %s 没有音频\033[0m' % dev)
                 self.finish_count += 1
@@ -599,6 +600,9 @@ class Tools(object):
         if CURRENT_MODULE in activities.keys():
             print('\033[1;36m重启APP\033[0m\n')
             for dev in ACTIVE_DEVICES:
+                if CURRENT_MODULE in (MOD_AINEMO_LAUNCHER,):
+                    os.popen('adb -s %s shell rm data/log/*.raw' % dev).close()
+                    os.popen('adb -s %s shell rm data/log/logcat.full_log.*' % dev).close()
                 stop = 'adb -s %s shell am force-stop %s 2>/dev/null' % (dev, activities[CURRENT_MODULE].split('/')[0])
                 start = 'adb -s %s shell am start %s 2>/dev/null' % (dev, activities[CURRENT_MODULE])
                 os.popen(stop).close()
@@ -742,7 +746,10 @@ def start_main():
             if CURRENT_MODULE != MOD_XIAODUBOX:
                 dev = get_device_list()
                 print(dev)
-                order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+                if len(dev) == 1:
+                    order = '0'
+                else:
+                    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
             else:
                 ips = input('\033[1;36m顺序输入设备ip，以逗号分割\033[0m\n')
                 dev = ips.split(',')

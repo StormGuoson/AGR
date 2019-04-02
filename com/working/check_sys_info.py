@@ -105,8 +105,8 @@ def check_by_logcat(line):
         is_finish = True
         return
     if current_type == 'cwbox':
-        if 'ASR SDK VERSION_NAME:' in line:
-            sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
+        if 'ASR SDK VERSION_NAME_QA:' in line:
+            sdk_ver = line[line.find('VERSION_NAME_QA:') + 14:-1]
             data['sdk版本号'] = sdk_ver
         elif 'SHA1' in line:
             if data['唤醒引擎版本'] is None:
@@ -138,6 +138,9 @@ def static_check(t):
         lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
         data['信号库md5'] = lib.readlines()[0].split()[0]
         lib.close()
+        lib = os.popen('adb shell md5sum system/lib/libbd_audio_vdev.so')
+        data['音频库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
         wp = os.popen('adb shell md5sum /data/data/com.baidu.muses.vera/files/speechres/lib_esis_wp.pkg.so')
         data['唤醒资源md5'] = wp.readlines()[0].split()[0]
         wp.close()
@@ -161,6 +164,7 @@ def select_type(t):
             'sdk版本号': None,
             '系统版本号': None,
             '信号库md5': None,
+            '音频库md5': None,
             '唤醒引擎版本': None,
             '唤醒资源md5': None,
             'VAD引擎版本号': None,

@@ -5,6 +5,10 @@ import re
 import sys
 from time import time
 
+import xlrd
+import xlwt
+from xlutils.copy import copy
+
 SELF_NAME = os.path.basename(sys.argv[0]).split(".")[0]
 
 
@@ -218,212 +222,26 @@ def foo3(_paths):
                     save_memory(abs_path.replace('rec', 'final'), line)
 
 
-def foo4(path):
-    for p in path:
-        abs_path = str(p)
-        abs_dir = abs_path[:abs_path.rfind('\\')]
-        name = abs_path[abs_path.rfind('\\') + 1:]
-        os.rename(abs_path, abs_dir + '\\wz_3m_fengchun_' + name)
+def add_title(_paths):
+    for p in _paths:
+        oldWb = xlrd.open_workbook(p)
+        oldWbS = oldWb.sheet_by_index(0)
+        newWb = copy(oldWb)
+        newWs = newWb.get_sheet(0)
+        inserColNo = 0
+        newWs.write(0, inserColNo, "项目名称")
+        for i in range(1, oldWbS.nrows):
+            newWs.write(i, inserColNo, os.path.basename(p)[:-5])
 
+        for rowIndex in range(inserColNo, oldWbS.nrows):
+            for colIndex in range(oldWbS.ncols):
+                newWs.write(rowIndex, colIndex + 1, oldWbS.cell(rowIndex, colIndex).value)
+        newWb.save(p.replace('xlsx', 'xls'))
+        # newWb.save(p)
 
-def change_csv(paths):
-    with open('result.csv', 'wb') as out:
-        writer = csv.writer(out, dialect='excel')
-        for p in paths:
-            if 'result.csv' in p or SELF_NAME in p:
-                continue
-            reader = csv.reader(open(p))
-            writer.writerows(reader)
-
-
-def foo5(path):
-    for p in path:
-        with open(p) as fi:
-            pi = str(p)
-            name = pi.split('\\')[-1]
-            finalPath = pi[:pi.rfind('\\') + 1] + 'final\\' + name
-            index = 0
-            tmp = ''
-            resultMSG = ''
-            item = 1
-            isFindWake = False
-            for line in fi:
-                if line.find('item [1]') != -1:
-                    item = 1
-                elif line.find('item [2]') != -1:
-                    item = 2
-                index += 1
-                # if index <= 14:
-                #     continue
-                if item == 11:
-                    if line.find('xmin =') != -1:
-                        if not isFindWake:
-                            tmp = line[12:-2] + '\t'
-                        else:
-                            tmp += line[12:-2] + '\t'
-                    elif line.find('xmax =') != -1:
-                        tmp += line[12:-2] + '\t'
-                    elif line.find('text =') != -1:
-                        if line.find(r'""') != -1:
-                            tt = tmp.split('\t')[:-3]
-                            tmp = ''
-                            for t in tt:
-                                tmp += t + '\t'
-                            continue
-                        else:
-                            if line.find(u'小度小度') != -1:
-                                isFindWake = True
-                            else:
-                                tmp += line[12:]
-                                resultMSG += pi + '\t' + tmp
-                                isFindWake = False
-                elif item == 2:
-                    if line.find('xmin =') != -1:
-                        tmp = line[12:-2] + '\t'
-                    elif line.find('xmax =') != -1:
-                        tmp += line[12:-2] + '\t'
-                    elif line.find('text =') != -1:
-                        if line.find(r'""') != -1:
-                            tmp = ''
-                            continue
-                        else:
-                            tmp += line[12:]
-                            resultMSG += tmp
-            # save_memory(finalPath, resultMSG)
-            print(resultMSG)
-
-
-def foo7(path):
-    for p in path:
-        finalMsg = ''
-        missFinal = False
-        with open(p, 'r') as f:
-            line = f.readlines()[0]
-            line = line.replace(u'、', u'、\n').replace(u'，', u'，\n').replace(u'。', u'。\n').replace(u'！', u'！\n').replace(
-                u'？', u'？\n')
-            lines = line.split('\n')
-            lengh = 0
-            oneline = ''
-            for li in lines:
-                # print li
-                oneline += li
-                lengh += len(li)
-                if lengh > 35:
-                    finalMsg += oneline[:-len(li)] + '\n'
-                    oneline = li
-                    lengh = len(li)
-            finalMsg += oneline
-            print(finalMsg)
-        with open(p, 'w') as f:
-            f.write(finalMsg)
-
-
-def foo8(paths):
-    for p in paths:
-        result_path = str(p).replace('_.TextGrid', '_result.txt').replace('.TextGrid', '_result.txt')
-        time_path = str(p).replace('_.TextGrid', '_time.txt').replace('.TextGrid', '_time.txt')
-        finalMsg = ''
-        finalTime = ''
-        tmpTime = ''
-        try:
-            with open(p, 'r') as f:
-                lines = f.readlines()[14:]
-                for line in lines:
-                    if 'xmin' in line:
-                        tmpTime += line[line.find('xmin') + 7:-1] + ' '
-                    elif 'xmax' in line:
-                        tmpTime += line[line.find('xmax') + 7:-1]
-                    elif 'text' in line:
-                        text = line[line.find('\"') + 1:line.rfind('\"')]
-                        if text == '':
-                            tmpTime = ''
-                        elif text == '小度小度':
-                            tmpTime += ' '
-                        else:
-                            finalMsg += text + '\n'
-                            finalTime += tmpTime + '\n'
-                            tmpTime = ''
-            save_memory(result_path, finalMsg)
-            save_memory(time_path, finalTime)
-        except UnicodeDecodeError as e:
-            print('code error ' + str(p))
-            # pass
-
-
-def foo9(paths):
-    finalMsg = ''
-    for p in paths:
-        with open(p, 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                after = line.split()
-                for a in after[1:]:
-                    finalMsg += after[0] + ' ' + a + '\n'
-    #             if len(line) > 4:
-    #                 finalMsg += line
-    save_memory('./spk2utt.txt', finalMsg)
-    # print(finalMsg)
-
-
-def format_name(paths):
-    for p in paths:
-        old_name = p[p.rfind(os.sep) + 1:]
-        new_name = old_name
-        if len(old_name) == 5:
-            new_name = '00' + old_name
-        elif len(old_name) == 6:
-            new_name = '0' + old_name
-        if old_name != new_name:
-            new_path = os.path.join(os.path.dirname(p), new_name)
-            os.rename(p, new_path)
-
-
-def put_here(paths):
-    # 创建指令词路径
-    for d in order_spell_lists:
-        cur_dir = os.path.join(result_path, d)
-        os.makedirs(cur_dir)
-
-    t_dir = ''
-    index = 0
-    for p in paths:
-        cur_dir = os.path.dirname(p)
-        last_dir = cur_dir[cur_dir.rfind(os.sep) + 1:]  # 上一级目录
-        if t_dir != last_dir:
-            index = 0
-        t_dir = last_dir
-        result_dir = os.path.join(result_path, order_spell_lists[index])  # 结果存放目录
-        txt_dir = os.path.join(result_dir, order_spell_lists[index] + '.txt')  # 保存结果的文本路径
-        aud_dir = os.path.join(result_dir, (order_spell_lists[index] + '-' + last_dir + '.pcm'))  # 音频结果路径
-        aud_name = aud_dir[aud_dir.rfind(os.sep) + 1:]  # 音频结果名
-        save_memory(txt_dir, '%s:%s:10' % (aud_name, order_cn_lists[index]))
-        os.rename(p, aud_dir)
-
-        index += 1
-
-
-order_cn_lists = ('播放列表', '循环播放', '查看歌词', '打开音乐', '打开导航',
-                  '回到首页', '加入收藏', '屏幕亮一点', '屏幕暗一点', '上一页',
-                  '下一页', '回主页', '打开车窗', '关闭车窗', '温度降低',
-                  '温度升高', '声音大一点', '声音小一点', '小度小度', '你好哈弗',
-                  '返回', '随机播放', '顺序播放', '单曲循环', '躲避拥堵',
-                  '导航声音大一点', '导航声音小一点', '退出')
-order_spell_lists = ('bofangliebiao', 'xunhuanbofang', 'chankangeci', 'dakaiyinyue', 'dakaidaohang',
-                     'huidaoshouye', 'jiarushoucang', 'pingmuliangyidian', 'pingmuanyidian', 'shangyiye',
-                     'xiayiye', 'huizhuye', 'dakaichechuang', 'guanbichechuang', 'jiangdiwendu',
-                     'wendushenggao', 'shengyindayidian', 'shengyinxiaoyidian', 'xiaoduxiaodu', 'nihaohafu',
-                     'fanhui', 'suijibofang', 'shunxubofang', 'danquxunhuan', 'duobiyongdu',
-                     'daohangshengyindayidian', 'daohangshengyinxiaoyidian', 'tuichu')
 
 if __name__ == '__main__':
-    result_path = '/Users/baidu/Desktop/result'
-    _path = r'/Users/baidu/Downloads/2019-2-26'
-    main = MainSearch(_path, u'[\S\s]+.pcm')
-
+    _path = r'/Users/baidu/Desktop/导流Vmall项目'
+    main = MainSearch(_path, u'[\S\s]+.xlsx')
     main.start()
-    format_name(main.get_paths())
-
-    main.start()
-    path = main.get_paths()
-    path = sorted(path)
-    put_here(path)
+    add_title(main.get_paths())
