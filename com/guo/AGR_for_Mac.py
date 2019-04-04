@@ -119,6 +119,7 @@ def write_wakeup(no):
 
 only_wakeup = False
 write_rec = False
+save_log = False
 stop_self = False
 restart_self = False
 SAVE_RESULTS = r'~/Desktop/res.log'
@@ -367,7 +368,7 @@ class MODULE(object):
             DATA['sn' + no] = sn + '_' + corpus
             auto_set(DATA['text' + no], DATA['sn' + no])
         elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
-            line = ast.literal_eval(line[line.find('{'):line.rfind('}')+1])
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             text = line['result']['word'][0]
             corpus = str(line['corpus_no'])
             sn = line['sn']
@@ -458,12 +459,15 @@ def consume(command, no):
     # frame.txt_log.write(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     print(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     mod = MODULE()
+    log = t.save_full_log(no)
     while not stdout_reader.eof() or not stderr_reader.eof():
         if stop_self or restart_self:
             break
         while not stdout_queue.empty():
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
+                if save_log:
+                    log.write(line)
                 mod.main_doing(line, CURRENT_MODULE, no)
             except Exception as e1:
                 print('\033[1;31m错误: ' + repr(e1) + '\033[0m')
@@ -537,6 +541,16 @@ class Tools(object):
 
     def __init__(self):
         self.finish_count = 0
+
+    @staticmethod
+    def save_full_log(no):
+        p = sys.argv[0].split('/')
+        dev = ACTIVE_DEVICES[int(no)]
+        log_path = '/%s/%s/Desktop/audio/%s/%s.txt' % (p[1], p[2], dev, dev)
+        if not os.path.exists(log_path[:log_path.rfind('/')]):
+            os.makedirs(log_path[:log_path.rfind('/')])
+        f = open(log_path, 'a+')
+        return f
 
     def pull_audio(self, dir_name):
         DATA.clear()
@@ -630,7 +644,7 @@ class Tools(object):
     def select_mod(_index=-1):
         if _index == -1:
             return 12
-
+        _index = int(_index)
         if _index == 0:
             return MOD_AINEMO_LAUNCHER
         if _index == 1:
@@ -655,6 +669,7 @@ class Tools(object):
             return MOD_CW_BOX_DEMO
         if _index == 11:
             return MOD_AINEMO_1S
+        raise IndexError
 
     def show_mods(self):
         for i in range(self.select_mod()):
@@ -676,7 +691,7 @@ class InputWatcher(threading.Thread):
         self.start()
 
     def run(self):
-        global stop_self, only_wakeup, restart_self
+        global stop_self, only_wakeup, restart_self, save_log
         while not stop_self and not restart_self:
             cmd = input()
             if cmd == 'c':
@@ -702,6 +717,13 @@ class InputWatcher(threading.Thread):
                 else:
                     only_wakeup = True
                     print('\033[1;36m唤醒模式开启\033[0m\n')
+            elif cmd == 'log':
+                if save_log:
+                    save_log = False
+                    print('\033[1;36m关闭抓取日志\033[0m\n')
+                else:
+                    save_log = True
+                    print('\033[1;36m开始抓取日志\033[0m\n')
 
 
 def show_help():
@@ -714,6 +736,7 @@ def show_help():
     输入 restart  :重启APP
     输入 q        :退出程序
     输入 s        :停止当前模式并回到选择界面
+    输入 log      :开始/关闭抓取日志，保存到/Desktop/audio/deviceSN/deviceSN.txt。文件为续写，不会覆盖。
     输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，
                         name缺省值为'audio'，支持多台设备音频同时导出
     
@@ -726,11 +749,48 @@ def show_help():
     start_main()
 
 
+def single_mod(mod):
+    global CURRENT_MODULE
+    CURRENT_MODULE = t.select_mod(mod)
+    print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
+    if CURRENT_MODULE != MOD_XIAODUBOX:
+        dev = get_device_list()
+        print(dev)
+        if len(dev) == 1:
+            order = '0'
+        else:
+            order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+    else:
+        ips = input('\033[1;36m顺序输入设备ip，以逗号分割\033[0m\n')
+        dev = ips.split(',')
+        order = [i for i in range(len(dev))]
+    for o in order:
+        ACTIVE_DEVICES.append(dev[int(o)])
+    for i in range(len(ACTIVE_DEVICES)):
+        ThreadLogcat(i)
+    InputWatcher()
+
+
+def multi_mod(mods):
+    pm = ''
+    for m in mods:
+        pm += t.select_mod(m) + '、'
+    print('\033[1;34m当前模式：' + pm[:-1] + '\033[0m')
+    dev = get_device_list()
+    print(dev)
+    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+    if len(order) != len(mods):
+        raise ValueError
+    for mod in pm.split('、'):
+        pass
+    InputWatcher()
+
+
 def start_main():
-    global only_wakeup, CURRENT_MODULE, stop_self, restart_self
+    global only_wakeup, CURRENT_MODULE, stop_self, restart_self, save_log
     ACTIVE_DEVICES.clear()
     stop_self = restart_self = False
-    only_wakeup = False
+    only_wakeup = save_log = False
     t.show_mods()
     print('输入 h 查看帮助')
     try:
@@ -739,25 +799,10 @@ def start_main():
             show_help()
         elif mod == 'q':
             t.kill_self()
+        elif len(mod.split()) == 1:
+            single_mod(mod)
         else:
-            CURRENT_MODULE = t.select_mod(int(mod))
-            print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
-            if CURRENT_MODULE != MOD_XIAODUBOX:
-                dev = get_device_list()
-                print(dev)
-                if len(dev) == 1:
-                    order = '0'
-                else:
-                    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
-            else:
-                ips = input('\033[1;36m顺序输入设备ip，以逗号分割\033[0m\n')
-                dev = ips.split(',')
-                order = [i for i in range(len(dev))]
-            for o in order:
-                ACTIVE_DEVICES.append(dev[int(o)])
-            for i in range(len(ACTIVE_DEVICES)):
-                ThreadLogcat(i)
-            InputWatcher()
+            multi_mod(mod.split())
     except (ValueError, IndexError):
         os.system('clear')
         print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
