@@ -257,22 +257,9 @@ def addTwoNumbers(l1, l2):
 
 
 if __name__ == '__main__':
-    # process = subprocess.Popen(['top'], universal_newlines=True,stdout=subprocess.PIPE, shell=True)
-    li = ['a', 'b', 'd']
-    for i, e in enumerate(li):
-        print('%s - %s' % (i, e))
-# desired_caps = {'platformName': 'Android',
-#                 'platformVersion': '8.0.0',
-#                 'deviceName': 'W8TNU18517101581',
-#                 'appPackage': 'com.baidu.speech.demo',
-#                 'appActivity': 'ActivityMain'}
-# driver = webdriver.Remote('http://127.0.0.1:4723/wd/hub', desired_caps)/
-# driver.find_elements_by_id('android:id/text1')[3].click()
-# format_duration(3600)
-# print(rl)
-# for e in l:
-#     if e == 0:
-#         l.remove(e)
-# print(res)
-# print([9, 9, 1, 2, 1, 1, 3, 1, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-# assert res == [9, 9, 1, 2, 1, 1, 3, 1, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    p = subprocess.Popen('adb shell top -d 1', stdout=subprocess.PIPE, shell=True)
+    for line in iter(p.stdout.readline, ''):
+        line = line.decode()
+        if line == '':
+            break
+        print(line, end='\r')

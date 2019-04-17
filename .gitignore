@@ -13,4 +13,5 @@ com/working/__init__.py
 AGR_for_Mac.spec
 AGR_for_Mac_ang.spec
 com/guo/geckodriver.log
+com/working/geckodriver.log
 com/working/getSoPerformance.py

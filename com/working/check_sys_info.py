@@ -106,7 +106,7 @@ def check_by_logcat(line):
         return
     if current_type == 'cwbox':
         if 'ASR SDK VERSION_NAME_QA:' in line:
-            sdk_ver = line[line.find('VERSION_NAME_QA:') + 14:-1]
+            sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
             data['sdk版本号'] = sdk_ver
         elif 'SHA1' in line:
             if data['唤醒引擎版本'] is None:
@@ -116,16 +116,18 @@ def check_by_logcat(line):
                 line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
                 data['VAD引擎版本号'] = line
     elif current_type == 'ainemo':
-        if 'SPIL' in line:
-            line = line[line.rfind(': ') + 2:-1]
-            data['信号so版本'] = line
-        elif 'VERSION_NAME:' in line:
-            sdk_ver = line[line.find('VERSION_NAME:') + 14:line.find(', ASR')]
+        if 'ASR SDK VERSION_NAME_QA:' in line:
+            sdk_ver = line[line.find('VERSION_NAME_QA:') + 14:-1]
+            print(sdk_ver)
             data['sdk版本号'] = sdk_ver
-        elif '\"pid\"' in line and 'startAsr params' in line:
-            line = line[line.find('pid'):]
-            line = line[5:line.find(',')]
-            data['pid'] = line
+        elif 'SHA1' in line:
+            if data['唤醒引擎版本'] is None:
+                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+                data['唤醒引擎版本'] = line
+            elif data['VAD引擎版本号'] is None:
+                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+                data['VAD引擎版本号'] = line
+            print(line)
 
 
 def static_check(t):
@@ -148,9 +150,24 @@ def static_check(t):
         data['VAD资源md5'] = vad.readlines()[0].split()[0]
         vad.close()
     elif t == 'ainemo':
-        lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
-        data['信号库md5'] = lib.readlines()[0].split()[0]
+        lib = os.popen('adb shell md5sum vendor/lib/libbdSPILAudioPorc.so')
+        lib1 = lib.readlines()[0].split()[0]
+        data['信号库md5'] = lib1
         lib.close()
+        lib = os.popen('adb shell md5sum vendor/lib/libbd_audio_vdev.so')
+        data['音频库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+        sys_info = os.popen('adb shell getprop | grep display')
+        t = sys_info.readlines()[0]
+        t = t[t.find(']: [') + 4:t.rfind(']')]
+        data['系统版本号'] = t
+        sys_info.close()
+        # wp = os.popen('adb shell md5sum /data/data/com.baidu.muses.vera/files/speechres/lib_esis_wp.pkg.so')
+        # data['唤醒资源md5'] = wp.readlines()[0].split()[0]
+        # wp.close()
+        # vad = os.popen('adb shell md5sum /data/data/com.baidu.muses.vera/files/speechres/libesis_vad.pkg.so')
+        # data['VAD资源md5'] = vad.readlines()[0].split()[0]
+        # vad.close()
 
 
 def select_type(t):
@@ -170,18 +187,18 @@ def select_type(t):
             'VAD引擎版本号': None,
             'VAD资源md5': None
         }
-        static_check(t)
     elif t == 'ainemo':
         data = {
-            '信号so版本': None,
-            '信号库md5': None,
             'sdk版本号': None,
+            '系统版本号': None,
+            '信号库md5': None,
+            '音频库md5': None,
             '唤醒引擎版本': None,
-            'vad引擎版本': None,
-            'pid': None,
-            'url': None
+            # '唤醒资源md5': None,
+            'VAD引擎版本号': None
+            # 'VAD资源md5': None
         }
-
+    static_check(t)
     consume('adb -s %s logcat -v time' % devs[0])
 
 
