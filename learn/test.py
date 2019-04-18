@@ -1,7 +1,10 @@
 import itertools
+import os
 import subprocess
 import sys
 import time
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def song_decoder(song):
@@ -257,9 +260,7 @@ def addTwoNumbers(l1, l2):
 
 
 if __name__ == '__main__':
-    p = subprocess.Popen('adb shell top -d 1', stdout=subprocess.PIPE, shell=True)
-    for line in iter(p.stdout.readline, ''):
-        line = line.decode()
-        if line == '':
-            break
-        print(line, end='\r')
+    x = np.array([1, 2, 3, 4, 5, 6])
+    y = np.array([11, 12, 13, 14, 15, 16])
+    plt.plot(x, y, 'red')
+    plt.show()

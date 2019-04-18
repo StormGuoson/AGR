@@ -129,6 +129,7 @@ td = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ACTIVE_DEVICES = []  # 激活的设备
 CURRENT_MODULE = ''  # 当前模式
 mods = []
+logs = []
 
 MOD_AINEMO_LAUNCHER = '小度在家'
 MOD_AINEMO_DEMO = '小度在家demo'
@@ -507,7 +508,6 @@ def consume(command, no):
     # frame.txt_log.write(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     print(('No%s_' % str(int(no) + 1)) + ACTIVE_DEVICES[int(no)] + u' <<<开始>>>' + '\r')
     mod = MODULE()
-    log = t.save_full_log(no)
     cm = mods[int(no)]
     while not stdout_reader.eof() or not stderr_reader.eof():
         if stop_self or restart_self:
@@ -516,7 +516,7 @@ def consume(command, no):
             line = stdout_queue.get().decode("utf-8", errors="ignore")
             try:
                 if is_save_log:
-                    log.write(line)
+                    logs[int(no)].write(line)
                 mod.main_doing(line, cm, no)
             except Exception as e1:
                 print('\033[1;31m错误: ' + repr(e1) + '\033[0m')
@@ -531,7 +531,7 @@ def consume(command, no):
         # Sleep a bit before asking the readers again.
         time.sleep(.1)
     if is_save_log:
-        log.close()
+        logs[int(no)].close()
     process.kill()
     if no == '0':
         if stop_self:
@@ -599,7 +599,7 @@ class Tools(object):
         log_path = '/%s/%s/Desktop/audio/%s/%s.txt' % (p[1], p[2], dev, dev)
         if not os.path.exists(log_path[:log_path.rfind('/')]):
             os.makedirs(log_path[:log_path.rfind('/')])
-        f = open(log_path, 'a+')
+        f = open(log_path, 'a')
         return f
 
     def pull_audio(self, dir_name):
@@ -758,9 +758,14 @@ class InputWatcher(threading.Thread):
             elif cmd == 'log':
                 if is_save_log:
                     is_save_log = False
+                    for log in logs:
+                        log.close()
+                    logs.clear()
                     print('\033[1;36m关闭抓取日志\033[0m\n')
                 else:
                     is_save_log = True
+                    for i in range(len(ACTIVE_DEVICES)):
+                        logs.append(t.save_full_log(i))
                     print('\033[1;36m开始抓取日志\033[0m\n')
 
 
@@ -834,6 +839,7 @@ def multi_mod(ms):
 def start_main():
     global only_wakeup, CURRENT_MODULE, stop_self, restart_self, is_save_log
     ACTIVE_DEVICES.clear()
+    logs.clear()
     mods.clear()
     stop_self = restart_self = False
     only_wakeup = is_save_log = False
