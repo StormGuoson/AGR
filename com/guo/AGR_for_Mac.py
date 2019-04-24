@@ -145,6 +145,9 @@ MOD_CW_BOX_DEMO = '创维盒子demo'
 MOD_AINEMO_1S = '小度在家1S'
 MOD_AINEMO_1L_DEMO = '小度在家1L-demo'
 MOD_AINEMO_1C = '小度在家1C'
+MOD_KUANYANG = '宽洋'
+MOD_esp32 = 'esp32'
+MOD_DRIVER = '车机'
 
 MOD_LIST = [MOD_AINEMO_LAUNCHER,
             MOD_AINEMO_DEMO,
@@ -159,7 +162,10 @@ MOD_LIST = [MOD_AINEMO_LAUNCHER,
             MOD_CW_BOX_DEMO,
             MOD_AINEMO_1S,
             MOD_AINEMO_1L_DEMO,
-            MOD_AINEMO_1C]
+            MOD_AINEMO_1C,
+            MOD_KUANYANG,
+            MOD_esp32,
+            MOD_DRIVER]
 
 DATA = {}
 
@@ -197,6 +203,55 @@ class MODULE(object):
             self.module_ainemo_1l_demo(_line, no)
         elif _module == MOD_AINEMO_1C:
             self.module_ainemo_1c(_line, no)
+        elif _module == MOD_KUANYANG:
+            self.module_ky(_line, no)
+        elif _module == MOD_esp32:
+            self.module_ep(_line, no)
+        elif _module == MOD_DRIVER:
+            self.module_driver(_line, no)
+
+    @staticmethod
+    def module_driver(line, no):
+        if line.find("----final_result") != -1:
+            # print(line)
+            rec_result = line.split(':')
+            # print(rec_result[0])
+            # print(rec_result[1])
+            # print(rec_result[2])
+            res = rec_result[7]
+            # sids = rec_result[2].split(' ')
+            sid = ""
+            # print(sid)
+            text = res
+            sn = sid
+            res_final = text + ',' + sn
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn
+            auto_set(DATA['text' + no], DATA['sn' + no])
+
+    @staticmethod
+    def module_ep(line, no):
+        if 'wakeup trigger status' in line:
+            write_wakeup(no)
+        elif 'asr result' in line and 'corpus_no' in line:
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            text = line['result']['word'][0]
+            sn = line['sn']
+            corpus = str(line['corpus_no'])
+            DATA['text' + no] = text
+            DATA['sn' + no] = sn + "_" + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
+
+    @staticmethod
+    def module_ky(line, no):
+        if u'唤醒成功' in line:
+            write_wakeup(no)
+        elif '\"type\":\"FINAL\"' in line:
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            text = line['directive']['payload']['text']
+            DATA['text' + no] = text
+            DATA['sn' + no] = line['directive']['header']['dialogRequestId']
+            auto_set(text, DATA['sn' + no])
 
     @staticmethod
     def module_ainemo_1c(line, no):
@@ -238,6 +293,8 @@ class MODULE(object):
             DATA['sn' + no] = '&%s&%s' % (reject, state)
         if 'wakeup_time' in line and 'result' in line:
             write_wakeup(no)
+            if only_wakeup:
+                os.popen('adb -s %s shell input tap 100 100' % ACTIVE_DEVICES[int(no)]).close()
         elif 'final_result' in line and 'results_recognition' in line and (
                 'finalResult' in line or 'SpeechCallback' in line):
             if u'极客' in line:
@@ -582,6 +639,8 @@ class ThreadLogcat(threading.Thread):
             consume('ssh root@%s tail -F /tmp/speechsdk.log' % _d, str(self.no))
         elif CURRENT_MODULE == MOD_XGP:
             consume('adb -s %s shell tail -F /tmp/speechsdk.log' % _d, str(self.no))
+        elif CURRENT_MODULE == MOD_esp32:
+            consume('tail -F %s' % sys.argv[self.no + 1], str(self.no))
         else:
             os.popen('adb -s %s logcat -c' % _d).close()
             consume("adb -s %s logcat -v time" % _d, str(self.no))
@@ -771,7 +830,8 @@ class InputWatcher(threading.Thread):
 
 def show_help():
     os.system('clear')
-    mhelp = '''选好设备类型、设备连接顺序后可进行导音频、重启等操作,在终端中输入指令后按回车键即可
+    mhelp = '''选好设备类型、设备连接顺序后可进行导音频、重启等操作,在终端中输入指令后按回车键即可。
+    如果要使用模式15（esp32），需要在工具运行前传入参数，操作为：打开终端，将工具拖入，然后依次将日志文件拖入即可。
     
     输入 w        :切换唤醒/识别模式
     输入 c        :归零唤醒次数
@@ -779,9 +839,8 @@ def show_help():
     输入 restart  :重启APP
     输入 q        :退出程序
     输入 s        :停止当前模式并回到选择界面
-    输入 log      :开始/关闭抓取日志，保存到/Desktop/audio/deviceSN/deviceSN.txt。文件为续写，不会覆盖。
-    输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，
-                        name缺省值为'audio'，支持多台设备音频同时导出
+    输入 log      :开始/关闭抓取日志，保存到~/Desktop/audio/deviceSN/deviceSN.txt。文件为续写，不会覆盖
+    输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，name缺省值为'audio'
     
 百度Hi：郭玉强
 \033[1;36m按回车键继续\033[0m
@@ -796,19 +855,26 @@ def single_mod(mod):
     global CURRENT_MODULE
     CURRENT_MODULE = t.select_mod(mod)
     print('\033[1;34m当前模式：' + CURRENT_MODULE + '\033[0m')
-    if CURRENT_MODULE != MOD_XIAODUBOX:
+    if CURRENT_MODULE == MOD_esp32:
+        if len(sys.argv) == 1:
+            raise ValueError
+        for ag in sys.argv[1:]:
+            ACTIVE_DEVICES.append(ag)
+    elif CURRENT_MODULE != MOD_XIAODUBOX:
         dev = get_device_list()
         print(dev)
         if len(dev) == 1:
             order = '0'
         else:
             order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+        for o in order:
+            ACTIVE_DEVICES.append(dev[int(o)])
     else:
         ips = input('\033[1;36m顺序输入设备ip，以逗号分割\033[0m\n')
         dev = ips.split(',')
         order = [i for i in range(len(dev))]
-    for o in order:
-        ACTIVE_DEVICES.append(dev[int(o)])
+        for o in order:
+            ACTIVE_DEVICES.append(dev[int(o)])
     for i in range(len(ACTIVE_DEVICES)):
         mods.append(CURRENT_MODULE)
     for i in range(len(ACTIVE_DEVICES)):

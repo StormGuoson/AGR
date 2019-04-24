@@ -9,6 +9,9 @@ com/guo/__pycache__/
 com/__init__.py
 learn/__init__.py
 com/guo/__init__.py
+com/working/*.txt
+com/working/wer
+com/working/fire_meeting_room.py
 com/working/__init__.py
 AGR_for_Mac.spec
 AGR_for_Mac_ang.spec

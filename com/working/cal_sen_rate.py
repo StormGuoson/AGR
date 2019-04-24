@@ -1,35 +1,42 @@
-import sys
-import xlrd
+import os
 
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
+import xlrd
+import sys
 
 
 class Main(object):
     def __init__(self):
-        opt = webdriver.FirefoxOptions()
-        # opt.add_argument('--headless')
-        self.d = webdriver.Firefox(options=opt, service_log_path=None)
-        self.d.get('http://bailing.audio.baidu-int.com:8081/index.php/tools/common/index?flag=1')
-        self.d.find_element_by_id('username').send_keys('v_guoyuqiang')
-        self.d.find_element_by_id('password').send_keys('v_guoyuqiang')
-        self.d.find_element_by_id('emailLogin').click()
+        self.ans = 'ans.txt'
+        self.res = 'res.txt'
+        self.cal_acu = {}
 
     def set_answer(self, ans):
-        while True:
-            try:
-                self.d.find_element_by_id('werform-recognize_answer').send_keys(ans)
-                break
-            except NoSuchElementException:
-                pass
+        with open(self.ans, 'w', encoding='gbk')as f:
+            index = 1
+            for line in ans[:-1].split('\n'):
+                msg = (str(index) + '\t' + line + '\n')
+                f.write(msg)
+                index += 1
         return self
 
     def set_result(self, res):
-        self.d.find_element_by_id('werform-recognize_result').send_keys(res)
+        with open(self.res, 'w', encoding='gbk') as f:
+            index = 1
+            for line in res[:-1].split('\n'):
+                msg = (str(index) + '\t' + line + '\n')
+                f.write(msg)
+                index += 1
         return self
 
-    def start_cal(self):
-        self.d.find_elements_by_class_name('btn.btn-primary')[0].click()
+    def cal_rate(self, key_name, l):
+        os.system('./wer %s %s fnl.txt' % (self.ans, self.res))
+        with open('fnl.txt', 'r', encoding='gbk') as f:
+            lines = f.readlines()
+            CHARACTOR_ACU = lines[-2:-1][0].split()[1]
+            UTTERANCE_ACU = lines[-1:][0].split()[1]
+            print(key_name + '---' + str(l) + '句')
+            print(CHARACTOR_ACU)
+            print(UTTERANCE_ACU + '\n')
 
 
 def read_xl():
@@ -66,9 +73,15 @@ def read_xl():
                 cols = sheet.col_values(2 + r, 0, sen_len + 1)
                 title = cols[0]
                 for e in cols[1:]:
+                    if str(e).strip() == '':
+                        continue
                     res += e + '\n'
-                result_map['%s>%s' % (sheet_name, title)] = res
+                result_map['%s>%s' % (sheet_name, title)] = res[:-1]
     return result_map
+
+
+def write_xl():
+    pass
 
 
 if __name__ == '__main__':
@@ -79,5 +92,9 @@ if __name__ == '__main__':
             m.set_answer(v)
         else:
             m.set_result(v)
-            m.start_cal()
-            break
+            m.cal_rate(k, len(v.split('\n')))
+        #     m.start_cal()
+        #     break
+    os.system('rm ans.txt')
+    os.system('rm res.txt')
+    os.system('rm fnl.txt')
