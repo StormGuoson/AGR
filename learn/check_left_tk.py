@@ -4,8 +4,6 @@ import threading
 import time
 
 from selenium import webdriver
-import wx
-import pygame
 
 
 class Tools(object):

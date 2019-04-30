@@ -15,6 +15,6 @@ com/working/fire_meeting_room.py
 com/working/__init__.py
 AGR_for_Mac.spec
 AGR_for_Mac_ang.spec
-com/guo/geckodriver.log
-com/working/geckodriver.log
+com/working/*.log
+com/working/*.xls
 com/working/getSoPerformance.py
