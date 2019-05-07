@@ -130,7 +130,7 @@ SAVE_AUDIO = r'~/Desktop/audio'
 td = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 ACTIVE_DEVICES = []  # 激活的设备
-CURRENT_MODULE = ''  # 当前模式
+CURRENT_MODULE = '小度在家'  # 当前模式
 mods = []
 logs = []
 
@@ -643,6 +643,7 @@ class Tools(object):
 
     def __init__(self):
         self.finish_count = 0
+        self.audio_path = 'audio'
 
     @staticmethod
     def save_full_log(no):
@@ -664,6 +665,7 @@ class Tools(object):
             dir_name = 'audio'
         else:
             dir_name = dir_name[1]
+            self.audio_path = dir_name
         for i, dev in enumerate(ACTIVE_DEVICES):
             CURRENT_MODULE = mods[i]
             p = sys.argv[0].split('/')
@@ -680,7 +682,11 @@ class Tools(object):
                 from_path = '/data/local/aud_rec/'
             else:
                 print('\n\033[1;31m该设备不支持\033[0m')
-                return
+                self.finish_count += 1
+                if self.finish_count == len(ACTIVE_DEVICES):
+                    print('\033[1;36m\n导出完毕\033[0m\n')
+                    self.savelog_after_move()
+                continue
             cmd = 'adb -s %s pull %s %s' % (dev, from_path, save_path)
             threading.Thread(target=self.__pull, args=(cmd, dev)).start()
 
@@ -700,6 +706,15 @@ class Tools(object):
         sp.kill()
         if self.finish_count == len(ACTIVE_DEVICES):
             print('\033[1;36m\n导出完毕\033[0m\n')
+            self.savelog_after_move()
+
+    def savelog_after_move(self):
+        if is_save_log:
+            ls = t.log()
+            for l in ls:
+                np = l.name[:l.name.rfind('/') + 1] + self.audio_path + '/' + l.name[l.name.rfind('/') + 1:]
+                os.rename(l.name, np)
+            t.log()
 
     @staticmethod
     def restart_app():
@@ -773,6 +788,22 @@ class Tools(object):
         with open(filename, "a+") as f:
             f.write(_content)
 
+    @staticmethod
+    def log():
+        global is_save_log
+        if is_save_log:
+            is_save_log = False
+            for log in logs:
+                log.close()
+            print('\033[1;36m关闭抓取日志\033[0m\n')
+        else:
+            logs.clear()
+            is_save_log = True
+            for i in range(len(ACTIVE_DEVICES)):
+                logs.append(t.save_full_log(i))
+            print('\033[1;36m开始抓取日志\033[0m\n')
+        return logs
+
 
 class InputWatcher(threading.Thread):
 
@@ -808,17 +839,7 @@ class InputWatcher(threading.Thread):
                     only_wakeup = True
                     print('\033[1;36m唤醒模式开启\033[0m\n')
             elif cmd == 'log':
-                if is_save_log:
-                    is_save_log = False
-                    for log in logs:
-                        log.close()
-                    logs.clear()
-                    print('\033[1;36m关闭抓取日志\033[0m\n')
-                else:
-                    is_save_log = True
-                    for i in range(len(ACTIVE_DEVICES)):
-                        logs.append(t.save_full_log(i))
-                    print('\033[1;36m开始抓取日志\033[0m\n')
+                t.log()
 
 
 def show_help():
@@ -832,9 +853,10 @@ def show_help():
     输入 restart  :重启APP
     输入 q        :退出程序
     输入 s        :停止当前模式并回到选择界面
-    输入 log      :开始/关闭抓取日志，保存到~/Desktop/audio/deviceSN/deviceSN.txt。文件为续写，不会覆盖
     输入 p [name] :导音频至'~/Desktop/audio/deviceSN/name'下，'deviceSN'为设备号，name缺省值为'audio'
-    
+    输入 log      :开始/关闭抓取日志，临时保存到~/Desktop/audio/deviceSN/deviceSN.txt。当执行导音频操作后，
+                        将日志移动到音频路径下,并在临时路径下重新保存日志。
+                        
 百度Hi：郭玉强
 \033[1;36m按回车键继续\033[0m
     '''

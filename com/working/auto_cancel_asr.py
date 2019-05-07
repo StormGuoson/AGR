@@ -1,3 +1,4 @@
+# -*- coding: utf-8-*-
 import os
 import sys
 import threading
@@ -26,8 +27,7 @@ def add_devices():
 
 def tail_file():
     p = sys.argv[0].split('/')
-
-    sp = subprocess.Popen('tail -f /%s/%s/..wakeup' % (p[1], p[2]), stdout=subprocess.PIPE, shell=True)
+    sp = subprocess.Popen('tail -f -n 0 /%s/%s/..wakeup' % (p[1], p[2]), stdout=subprocess.PIPE, shell=True)
     for line in iter(sp.stdout.readline, ''):
         threading.Thread(target=do, args=(line,)).start()
 
@@ -42,6 +42,9 @@ def do(line):
 
 
 def start():
+    print('\33[5;33m开始监听\33[0m')
+    for d in get_device_list():
+        print(d)
     add_devices()
     tail_file()
 
