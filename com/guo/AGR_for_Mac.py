@@ -260,14 +260,14 @@ class MODULE(object):
     def module_ainemo_1c(line, no):
         if 'wakeup_time' in line and 'wp.data' in line and 'WakeUpEngine' in line:
             write_wakeup(no)
-        elif line.find('final_result') != -1 and line.find('results_recognition') != -1:
+        elif line.find('final_result') != -1 and line.find('SpeechCallback') != -1:
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             text = line['results_recognition'][0]
             sn = line['origin_result']['sn']
             corpus = str(line['origin_result']['corpus_no'])
             DATA['sn' + no] = sn + "_" + corpus
             DATA['text' + no] = text
-            auto_set(text, sn)
+            auto_set(text, DATA['sn' + no])
 
     @staticmethod
     def module_ainemo_1l_demo(line, no):
@@ -335,7 +335,7 @@ class MODULE(object):
     # 创维launcher识别
     @staticmethod
     def module_chuangwei_launcher(line, no):
-        if 'wakeup_time' in line and 'result' in line:
+        if 'name : wp.data' in line:
             write_wakeup(no)
         elif 'final_result' in line and 'AsrEngine' in line and 'asrEventListener' in line:
             # print(line[:-1])
