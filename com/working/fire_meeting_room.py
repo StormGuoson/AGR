@@ -5,7 +5,7 @@ from selenium import webdriver
 
 
 def get_url():
-    driver = webdriver.Firefox()
+    driver = webdriver.Firefox(service_log_path=None)
     drivers.append(driver)
     driver.get('http://meeting.baidu.com/index.html#/home')
     try:

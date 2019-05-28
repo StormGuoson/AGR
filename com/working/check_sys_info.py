@@ -109,24 +109,21 @@ def check_by_logcat(line):
         if 'ASR SDK VERSION_NAME_QA:' in line:
             sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
             data['sdk版本号'] = sdk_ver
-        elif 'SHA1' in line:
-            if data['唤醒引擎版本'] is None:
-                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
-                data['唤醒引擎版本'] = line
-            elif data['VAD引擎版本号'] is None:
-                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
-                data['VAD引擎版本号'] = line
     elif current_type == 'ainemo':
         if 'ASR SDK VERSION_NAME_QA:' in line:
             sdk_ver = line[line.find('VERSION_NAME_QA:') + 14:-1]
             data['sdk版本号'] = sdk_ver
-        elif 'SHA1' in line:
-            if data['唤醒引擎版本'] is None:
-                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
-                data['唤醒引擎版本'] = line
-            elif data['VAD引擎版本号'] is None:
-                line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
-                data['VAD引擎版本号'] = line
+    elif current_type == 'cw':
+        if 'ASR SDK VERSION_NAME_QA:' in line:
+            sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
+            data['sdk版本号'] = sdk_ver
+    if 'SHA1' in line:
+        if data['唤醒引擎版本'] is None:
+            line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+            data['唤醒引擎版本'] = line
+        elif data['VAD引擎版本号'] is None:
+            line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
+            data['VAD引擎版本号'] = line
 
 
 def static_check(t):
@@ -148,6 +145,26 @@ def static_check(t):
         data['唤醒资源md5'] = wp.readlines()[0].split()[0]
         wp.close()
         vad = os.popen('adb shell md5sum /data/data/com.baidu.muses.vera/files/speechres/libesis_vad.pkg.so')
+        data['VAD资源md5'] = vad.readlines()[0].split()[0]
+        vad.close()
+    elif t == 'cw':
+        sys_info = os.popen('adb shell getprop | grep display')
+        t = sys_info.readlines()[0]
+        t = t[t.find(']: [') + 4:t.rfind(']')]
+        data['系统版本号'] = t
+        sys_info.close()
+        lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
+        data['信号库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+        lib = os.popen('adb shell md5sum system/lib/libbd_audio_vdev_4_2.so')
+        data['音频库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+        wp = os.popen(
+            'adb shell md5sum /data/data/com.skyworth.lafite.srtnj.speechserver/files/speechres/lib_esis_wp.pkg.so')
+        data['唤醒资源md5'] = wp.readlines()[0].split()[0]
+        wp.close()
+        vad = os.popen(
+            'adb shell md5sum /data/data/com.skyworth.lafite.srtnj.speechserver/files/speechres/libesis_vad.pkg.so')
         data['VAD资源md5'] = vad.readlines()[0].split()[0]
         vad.close()
     elif t == 'ainemo':
@@ -177,7 +194,7 @@ def select_type(t):
     devs = get_device_list()
     print(devs[0])
 
-    if t == 'cwbox':
+    if t == 'cwbox' or t == 'cw':
         data = {
             'sdk版本号': None,
             '系统版本号': None,
@@ -206,6 +223,6 @@ def select_type(t):
 
 if __name__ == '__main__':
     data = {}
-    current_type = 'ainemo'
+    current_type = 'cw'
     is_finish = False
     select_type(current_type)

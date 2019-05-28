@@ -1,5 +1,4 @@
 import unittest
-import xmlrunner
 
 
 class Test(unittest.TestCase):
@@ -45,3 +44,10 @@ class Test(unittest.TestCase):
 
     def test_5(self):
         self.assertEqual(self.alphabet_war("wwwwww"), "Left side wins!")
+
+
+if __name__ == '__main__':
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(Test))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)

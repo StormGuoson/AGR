@@ -55,6 +55,7 @@ def _as(_text, _sn):
             return
         if DATA['text' + d] == '':
             return
+
     for s in range(len(ACTIVE_DEVICES)):
         s = str(s)
         set_clipboard_text(DATA['text' + s])
@@ -175,7 +176,8 @@ DATA = {}
 
 class MODULE(object):
     def __init__(self):
-        pass
+        self.stime = ''
+        self.num = 1
 
     def main_doing(self, _line, _module, no):
         if _module == MOD_CW_DEMO:
@@ -260,7 +262,7 @@ class MODULE(object):
     def module_ainemo_1c(line, no):
         if 'wakeup_time' in line and 'wp.data' in line and 'WakeUpEngine' in line:
             write_wakeup(no)
-        elif line.find('final_result') != -1 and line.find('SpeechCallback') != -1:
+        elif line.find('Final result') != -1 or (line.find('SpeechCallback') != -1 and line.find('final_result') != -1):
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             text = line['results_recognition'][0]
             sn = line['origin_result']['sn']
@@ -293,19 +295,19 @@ class MODULE(object):
             else:
                 reject = 'False'
             state = line['state']
-            DATA['sn' + no] = '&%s&%s' % (reject, state)
+            DATA['sn1' + no] = '&%s&%s' % (reject, state)
         if 'wakeup_time' in line and 'result' in line:
             write_wakeup(no)
         elif 'final_result' in line and 'results_recognition' in line and (
                 'finalResult' in line or 'SpeechCallback' in line):
             if u'极客' in line:
                 return
-            if not DATA['sn' + no]:
-                DATA['sn' + no] = ''
+            if ('sn1' + no) not in DATA.keys():
+                DATA['sn1' + no] = ''
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             DATA['text' + no] = line['results_recognition'][0]
             DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no']) + DATA[
-                'sn' + no]
+                'sn1' + no]
             auto_set(DATA['text' + no], DATA['sn' + no])
 
     # 创维demo识别
@@ -367,19 +369,19 @@ class MODULE(object):
             else:
                 reject = 'False'
             state = line['state']
-            DATA['sn' + no] = '&%s&%s' % (reject, state)
+            DATA['sn1' + no] = '&%s&%s' % (reject, state)
         if 'wakeup_time' in line and 'SpeechCallback' in line:
             write_wakeup(no)
         elif 'final_result' in line and 'results_recognition' in line and (
                 'finalResult' in line or 'SpeechCallback' in line):
             if u'极客' in line:
                 return
-            if not DATA['sn' + no]:
-                DATA['sn' + no] = ''
+            if ('sn1' + no) not in DATA.keys():
+                DATA['sn1' + no] = ''
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             DATA['text' + no] = line['results_recognition'][0]
             DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no']) + DATA[
-                'sn' + no]
+                'sn1' + no]
             auto_set(DATA['text' + no], DATA['sn' + no])
 
     @staticmethod
@@ -411,19 +413,27 @@ class MODULE(object):
             auto_set(DATA['text' + no], DATA['sn' + no])
 
     # 创维box
-    @staticmethod
-    def module_cw_box(line, no):
+    def module_cw_box(self, line, no):
         if line.find("wakeup_time") != -1 and line.find("result") != -1:
             write_wakeup(no)
+            self.stime = time.time()
+        elif 'asr.end' in line:
+            dur = float(time.time() - self.stime)
+            if dur <= 5.0:
+                print('提前截断' + str(self.num))
+                self.num += 1
+                # time.sleep(1.5)
+                # d.click(0.136, 0.817)
         # elif line.find('final_result') != -1 and line.find('finalResult') != -1:
-        elif line.find('final_result') != -1 and ('SpeechCallback' in line or 'finalResult' in line):
-            line = ast.literal_eval(line[line.find('{'):])
+        elif 'final_result' in line and 'AsrEngine' in line and 'asrEventListener' in line:
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             text = line['results_recognition'][0]
             corpus = str(line['origin_result']['corpus_no'])
             sn = line['origin_result']['sn']
             DATA['text' + no] = text
             DATA['sn' + no] = sn + '_' + corpus
             auto_set(DATA['text' + no], DATA['sn' + no])
+            self.num -= 1
 
     @staticmethod
     def module_cw_show_demo(line, no):
@@ -573,7 +583,7 @@ def consume(command, no):
                 # frame.txt_log.write(repr(e))
         while not stderr_queue.empty():
             line = stderr_queue.get().decode('utf-8')
-            if 'has been replaced' in line or 'EOF' in line:
+            if 'has been replaced' in line or 'EOF' in line or line is None:
                 continue
             print('\033[1;31m错误: 设备-' + ACTIVE_DEVICES[int(no)] + str(line) + '\033[0m')
             stop_self = True
