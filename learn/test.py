@@ -46,4 +46,4 @@ def foo2(string):
 
 
 if __name__ == '__main__':
-    print(water(1000000000))
+    pass

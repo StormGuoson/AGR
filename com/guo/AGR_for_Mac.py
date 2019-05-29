@@ -99,8 +99,9 @@ def _as(_text, _sn):
 def write_wakeup(no):
     L.acquire()
     p = sys.argv[0].split('/')
-    with open('/%s/%s/..wakeup' % (p[1], p[2]), 'a') as f:
-        f.write(ACTIVE_DEVICES[int(no)] + '\n')
+    if only_wakeup:
+        with open('/%s/%s/..wakeup' % (p[1], p[2]), 'a') as f:
+            f.write(ACTIVE_DEVICES[int(no)] + '\n')
     for d in range(len(ACTIVE_DEVICES)):
         d = str(d)
         DATA['text' + d] = DATA['sn' + d] = ''
@@ -476,7 +477,8 @@ class MODULE(object):
             DATA['text' + no] = text
             DATA['sn' + no] = sn + '_' + corpus
             auto_set(DATA['text' + no], DATA['sn' + no])
-        elif 'asr finish' in line or ('Final result' in line and 'results_recognition' not in line):
+        elif ('asr finish' in line and 'm_isRunning' not in line) or (
+                'Final result' in line and 'results_recognition' not in line):
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             text = line['result']['word'][0]
             corpus = str(line['corpus_no'])
@@ -891,7 +893,9 @@ def single_mod(mod):
         if len(dev) == 1:
             order = '0'
         else:
-            order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+            order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split()
+            if not order:
+                order = [x for x in range(len(dev))]
         for o in order:
             ACTIVE_DEVICES.append(dev[int(o)])
     else:
@@ -915,7 +919,9 @@ def multi_mod(ms):
     print('\033[1;34m当前模式：' + pm[:-1] + '\033[0m')
     dev = get_device_list()
     print(dev)
-    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split(' ')
+    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n')
+    if not order:
+        order = [x for x in range(len(dev))]
     if len(order) != len(ms):
         raise ValueError
     for o in order:

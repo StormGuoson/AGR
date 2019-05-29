@@ -235,9 +235,12 @@ def scbb(paths):
 
 
 if __name__ == '__main__':
-    _path = sys.argv[1]
-    main = MainSearch(_path, u'[\S\s]*')
-    main.start()
+    # _path = sys.argv[1]
+    # main = MainSearch(_path, u'[\S\s]*')
+    # main.start()
+    res = input('as').split()
+    if not res:
+        print('none')
     # scbb(main.get_files())
     # do_xl(main.get_files())
     # rename2z(main.get_files())
