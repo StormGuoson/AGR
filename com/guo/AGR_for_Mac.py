@@ -218,22 +218,21 @@ class MODULE(object):
 
     @staticmethod
     def module_driver(line, no):
-        if line.find("----final_result") != -1:
-            # print(line)
-            rec_result = line.split(':')
-            # print(rec_result[0])
-            # print(rec_result[1])
-            # print(rec_result[2])
-            res = rec_result[7]
-            # sids = rec_result[2].split(' ')
-            sid = ""
-            # print(sid)
-            text = res
-            sn = sid
-            res_final = text + ',' + sn
-            DATA['text' + no] = text
-            DATA['sn' + no] = sn
-            auto_set(DATA['text' + no], DATA['sn' + no])
+        if line.find("wp.data") != -1:
+            if "你好航小瓜" not in line and "你好魔方" not in line and "小可爱" not in line:
+                # print(line)2660875263. word
+                rec_result = line.split(':')
+                res = rec_result[8]
+                wp_data = res.split('.')
+                sid = ""
+                wp = wp_data[0]
+                print(wp)
+                text = wp
+                sn = sid
+                res_final = text + ',' + sn
+                DATA['text' + no] = text
+                DATA['sn' + no] = sn
+                auto_set(DATA['text' + no], DATA['sn' + no])
 
     @staticmethod
     def module_ep(line, no):
@@ -263,14 +262,26 @@ class MODULE(object):
     def module_ainemo_1c(line, no):
         if 'wakeup_time' in line and 'wp.data' in line and 'WakeUpEngine' in line:
             write_wakeup(no)
-        elif line.find('Final result') != -1 or (line.find('SpeechCallback') != -1 and line.find('final_result') != -1):
+        elif 'asr_reject' in line and 'state' in line and 'asr_result':
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
-            text = line['results_recognition'][0]
-            sn = line['origin_result']['sn']
-            corpus = str(line['origin_result']['corpus_no'])
-            DATA['sn' + no] = sn + "_" + corpus
-            DATA['text' + no] = text
-            auto_set(text, DATA['sn' + no])
+            reject = line['asr_reject']
+            if reject == 0:
+                reject = 'True'
+            else:
+                reject = 'False'
+            state = line['state']
+            DATA['sn1' + no] = '&%s&%s' % (reject, state)
+        elif 'final_result' in line and 'results_recognition' in line and (
+                    'finalResult' in line or 'SpeechCallback' in line):
+            if u'极客' in line:
+                return
+            if ('sn1' + no) not in DATA.keys():
+                DATA['sn1' + no] = ''
+            line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
+            DATA['text' + no] = line['results_recognition'][0]
+            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no']) + DATA[
+                'sn1' + no]
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
     @staticmethod
     def module_ainemo_1l_demo(line, no):
