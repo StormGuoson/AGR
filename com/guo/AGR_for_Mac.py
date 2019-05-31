@@ -930,7 +930,7 @@ def multi_mod(ms):
     print('\033[1;34m当前模式：' + pm[:-1] + '\033[0m')
     dev = get_device_list()
     print(dev)
-    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n')
+    order = input('\033[1;36m请输入设备连接顺序,以空格区分(0为起始)\033[0m\n').split()
     if not order:
         order = [x for x in range(len(dev))]
     if len(order) != len(ms):
