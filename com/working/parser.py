@@ -28,13 +28,15 @@ class LogParser(object):
                     try:
                         line = line.decode('utf-8')
                         if self.check(line, args):
+                        # if 'final_result' in line and 'results_recognition' in line and 'finalResult' in line:
+                            print(line)
                             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
                             text = line['results_recognition'][0]
                             corpus = str(line['origin_result']['corpus_no'])
                             sn = line['origin_result']['sn']
                             fnl = '%s_%s_%s' % (text, sn, corpus)
                             res.write(fnl + '\n')
-                            print(fnl)
+                            # print(fnl)
                     except UnicodeDecodeError:
                         pass
         res.flush()

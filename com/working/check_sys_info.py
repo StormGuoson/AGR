@@ -117,6 +117,10 @@ def check_by_logcat(line):
         if 'ASR SDK VERSION_NAME_QA:' in line:
             sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
             data['sdk版本号'] = sdk_ver
+    elif current_type == 'cw-demo':
+        if 'ASR SDK VERSION_NAME_QA:' in line:
+            sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
+            data['sdk版本号'] = sdk_ver
     if 'SHA1' in line:
         if data['唤醒引擎版本'] is None:
             line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
@@ -167,6 +171,26 @@ def static_check(t):
             'adb shell md5sum /data/data/com.skyworth.lafite.srtnj.speechserver/files/speechres/libesis_vad.pkg.so')
         data['VAD资源md5'] = vad.readlines()[0].split()[0]
         vad.close()
+    elif t == 'cw-demo':
+        sys_info = os.popen('adb shell getprop | grep display')
+        t = sys_info.readlines()[0]
+        t = t[t.find(']: [') + 4:t.rfind(']')]
+        data['系统版本号'] = t
+        sys_info.close()
+        lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
+        data['信号库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+        lib = os.popen('adb shell md5sum system/lib/libbd_audio_vdev_4_2.so')
+        data['音频库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+        wp = os.popen(
+            'adb shell md5sum /data/data/com.baidu.speech.demo/lib/lib_esis_wp.pkg.so')
+        data['唤醒资源md5'] = wp.readlines()[0].split()[0]
+        wp.close()
+        vad = os.popen(
+            'adb shell md5sum /data/data/com.baidu.speech.demo/lib/libesis_vad.pkg.so')
+        data['VAD资源md5'] = vad.readlines()[0].split()[0]
+        vad.close()
     elif t == 'ainemo':
         lib = os.popen('adb shell md5sum vendor/lib/libbdSPILAudioProc.so')
         lib1 = lib.readlines()[0].split()[0]
@@ -194,7 +218,7 @@ def select_type(t):
     devs = get_device_list()
     print(devs[0])
 
-    if t == 'cwbox' or t == 'cw':
+    if t == 'cwbox' or t == 'cw' or t == 'cw-demo':
         data = {
             'sdk版本号': None,
             '系统版本号': None,
@@ -223,6 +247,6 @@ def select_type(t):
 
 if __name__ == '__main__':
     data = {}
-    current_type = 'cw'
+    current_type = 'cw-demo'
     is_finish = False
     select_type(current_type)

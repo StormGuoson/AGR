@@ -1,3 +1,6 @@
+import os
+
+
 def foo(s):
     res = 0
     for i, v in enumerate(s[::-1]):
@@ -45,30 +48,11 @@ def foo2(string):
     return res
 
 
-if __name__ == '__main__':
-    greek_alphabet = ('alpha',
-                      'beta',
-                      'gamma',
-                      'delta',
-                      'epsilon',
-                      'zeta',
-                      'eta',
-                      'theta',
-                      'iota',
-                      'kappa',
-                      'lambda',
-                      'mu',
-                      'nu',
-                      'xi',
-                      'omicron',
-                      'pi',
-                      'rho',
-                      'sigma',
-                      'tau',
-                      'upsilon',
-                      'phi',
-                      'chi',
-                      'psi',
-                      'omega')
+def k(x):
+    return len(x)
 
-    print(max(greek_alphabet))
+
+if __name__ == '__main__':
+    res = os.popen('ls').readlines()
+    for r in res:
+        print(r[:-1], end='')

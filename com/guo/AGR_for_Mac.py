@@ -271,8 +271,7 @@ class MODULE(object):
                 reject = 'False'
             state = line['state']
             DATA['sn1' + no] = '&%s&%s' % (reject, state)
-        elif 'final_result' in line and 'results_recognition' in line and (
-                    'finalResult' in line or 'SpeechCallback' in line):
+        elif 'final_result' in line and 'results_recognition' in line and 'finalResult' in line:
             if u'极客' in line:
                 return
             if ('sn1' + no) not in DATA.keys():
@@ -325,8 +324,8 @@ class MODULE(object):
     # 创维demo识别
     @staticmethod
     def module_chuangwei_demo(line, no):
-        # if line.find('wakeup_time') != -1:
-        #     write_wakeup( no)
+        if line.find('wakeup_time') != -1 and 'wp.data' in line and 'result' in line:
+            write_wakeup(no)
         # if line.find("ASREngine") != -1 and line.find('origin_result') != -1 and line.find('corpus_no') != -1:
         #     line = ast.literal_eval(line[line.find('{'):])
         #     corpus = str(line['origin_result']['corpus_no'])
@@ -351,12 +350,14 @@ class MODULE(object):
     def module_chuangwei_launcher(line, no):
         if 'name : wp.data' in line:
             write_wakeup(no)
-        elif 'final_result' in line and 'AsrEngine' in line and 'asrEventListener' in line:
+        elif 'BDSHttpRequestMaker' in line and 'corpus_no' in line and 'response' in line:
             # print(line[:-1])
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
-            DATA['text' + no] = line['results_recognition'][0]
-            DATA['sn' + no] = line['origin_result']['sn'] + '_' + str(line['origin_result']['corpus_no'])
-            auto_set(DATA['text' + no], DATA['sn' + no])
+            DATA['sn' + no] = line['sn'] + '_' + str(line['corpus_no'])
+        elif 'onFinalReconnition' in line:
+            text = line[line.rfind(': ') + 2:-1]
+            DATA['text' + no] = text
+            auto_set(text, DATA['sn' + no])
 
     # 华为产品包 识别
     @staticmethod
@@ -652,7 +653,8 @@ class ThreadLogcat(threading.Thread):
         _d = ACTIVE_DEVICES[self.no]
         CURRENT_MODULE = mods[self.no]
         if CURRENT_MODULE == MOD_XIAODUBOX:
-            consume('ssh root@%s tail -F /tmp/speechsdk.log' % _d, str(self.no))
+            res = os.popen('ssh root@%s ls /tmp | grep speech' % _d).readlines()[0][:-1]
+            consume('ssh root@%s tail -F /tmp/%s' % (_d, res), str(self.no))
         elif CURRENT_MODULE == MOD_XGP:
             consume('adb -s %s shell tail -F /tmp/speechsdk.log' % _d, str(self.no))
         elif CURRENT_MODULE == MOD_esp32:
@@ -763,7 +765,7 @@ class Tools(object):
                 print('\033[1;36m重启APP\033[0m\n')
                 if CURRENT_MODULE in (MOD_AINEMO_LAUNCHER,):
                     os.popen('adb -s %s shell rm data/log/*.raw' % dev).close()
-                    os.popen('adb -s %s shell rm data/log/logcat.full_log.*' % dev).close()
+                    os.popen('adb -s %s shell rm data/log/logcat_full.log.*' % dev).close()
                 stop = 'adb -s %s shell am force-stop %s 2>/dev/null' % (dev, activities[CURRENT_MODULE].split('/')[0])
                 start = 'adb -s %s shell am start %s 2>/dev/null' % (dev, activities[CURRENT_MODULE])
                 os.popen(stop).close()
@@ -853,6 +855,22 @@ class InputWatcher(threading.Thread):
                 t.reboot_dev()
             elif cmd.startswith('p'):
                 t.pull_audio(cmd)
+                for i, d in enumerate(ACTIVE_DEVICES):
+                    if mods[i] in (MOD_AINEMO_LAUNCHER,):
+                        file = 'data/log/test_info.txt'
+                    elif mods[i] in (MOD_AINEMO_1C, MOD_AINEMO_1S):
+                        file = 'data/local/aud_rec/alg_wake_info_0'
+                    elif mods[i] in (MOD_CW_LAUNCHER, MOD_CW_DEMO):
+                        file = 'data/local/tmp/aud_rec/alg_wake_info_0'
+                    else:
+                        file = ''
+                    if file == '':
+                        continue
+                    res = \
+                        os.popen(
+                            'adb -s %s shell cat %s|grep "wakeup_status=1"|wc -l' % (d, file)).readlines()[
+                            0]
+                    print('设备%s唤醒次数为：%s' % (d, res.strip()))
             elif cmd == 'w':
                 if only_wakeup:
                     only_wakeup = False

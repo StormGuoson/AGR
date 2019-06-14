@@ -22,7 +22,10 @@ def get_device_list():
 
 def add_devices():
     for d1 in get_device_list():
-        devices[d1] = at.connect_usb(d1)
+        if style == 'native':
+            pass
+        else:
+            devices[d1] = at.connect_usb(d1)
 
 
 def tail_file():
@@ -35,8 +38,13 @@ def tail_file():
 def do(line):
     try:
         line = line.decode()
-        time.sleep(.3)
-        devices[line[:-1]].click(100, 100)
+        if style == 'native':
+            cmd = 'adb -s %s shell input tap 100 100' % line[:-1]
+            os.popen(cmd)
+            print(cmd)
+        else:
+            time.sleep(.3)
+            devices[line[:-1]].click(100, 100)
     except UnicodeDecodeError:
         pass
 
@@ -51,4 +59,7 @@ def start():
 
 if __name__ == '__main__':
     devices = {}
+    style = ''
+    if len(sys.argv) > 1:
+        style = 'native'
     start()
