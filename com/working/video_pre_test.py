@@ -16,7 +16,7 @@ def cat_log():
             line = line.decode()
             if line == '':
                 return
-            find_data_end_beyond_fnl(line)
+            find_data(line)
         except UnicodeDecodeError:
             pass
 
@@ -40,17 +40,20 @@ def find_data(line):
         res = DATA.split()
         b = res[:-1]
         a = ' ' + res[-1]
-        DATA = str(b).replace('[', '').replace(']', '').replace('\'', '').replace(',', '') + d + a
-        print(DATA)
+        DATA += ' ' + line.split()[1]
+        # text = ' ' + DATA.split()[3]
+        # print(DATA.replace(text, '') + text)
 
-    # elif 'CALLBACK = asr.tts-result' in line:
-    #     if len(DATA.split()) != 5:
-    #         return
-    #     d = ' ' + line.split()[1]
-    #     res = DATA.split()
-    #     b = res[:-1]
-    #     a = ' ' + res[-1]
-    #     DATA = str(b).replace('[', '').replace(']', '').replace('\'', '').replace(',', '') + d + a
+    elif 'CALLBACK = asr.tts-result' in line:
+        if len(DATA.split()) != 5:
+            return
+        d = ' ' + line.split()[1]
+        res = DATA.split()
+        b = res[:-1]
+        a = ' ' + res[-1]
+        DATA += ' ' + line.split()[1]
+        text = ' ' + DATA.split()[3]
+        print(DATA.replace(text, '') + text)
     elif ('final_result' in line and 'CALLBACK' in line) or 'finalResult' in line:
         if len(DATA.split()) != 3:
             return

@@ -2,7 +2,9 @@
 import os
 import re
 import sys
-import openpyxl as op
+import time
+
+# import openpyxl as op
 import xlrd, xlwt
 
 SELF_NAME = os.path.basename(sys.argv[0]).split(".")[0]
@@ -159,37 +161,37 @@ def rename2z(path):
 
 
 # 筛选手机号
-def do_xl(paths):
-    if not os.path.exists('result'):
-        os.mkdir('result')
-    for path in paths:
-        print(path)
-        file = op.Workbook(True)
-        wb = xlrd.open_workbook(path)
-        for name in wb.sheets():
-            print(name)
-            write = file.create_sheet(name.name)
-            ws = wb.sheet_by_name(name.name)
-            # 获取title
-            t1 = t2 = -1
-            m_row = [x.value for x in ws.row(0)]
-            write.append(m_row)
-            for i, e in enumerate(ws.row(0)):
-                if e.value == '事件标签':
-                    t1 = i
-                elif e.value == '项目名称':
-                    t2 = i
-
-            r = 1
-            for rows in ws.get_rows():
-                if check_no1(rows[t1].value) and check_no2(rows[t2].value):
-                    # for i, row in enumerate(rows):
-                    m_row = [x.value for x in rows]
-                    write.append(m_row)
-                else:
-                    r -= 1
-                r += 1
-        file.save('.%sresult%s' % (os.sep, path[path.rfind(os.sep):]))
+# def do_xl(paths):
+#     if not os.path.exists('result'):
+#         os.mkdir('result')
+#     for path in paths:
+#         print(path)
+#         file = op.Workbook(True)
+#         wb = xlrd.open_workbook(path)
+#         for name in wb.sheets():
+#             print(name)
+#             write = file.create_sheet(name.name)
+#             ws = wb.sheet_by_name(name.name)
+#             # 获取title
+#             t1 = t2 = -1
+#             m_row = [x.value for x in ws.row(0)]
+#             write.append(m_row)
+#             for i, e in enumerate(ws.row(0)):
+#                 if e.value == '事件标签':
+#                     t1 = i
+#                 elif e.value == '项目名称':
+#                     t2 = i
+#
+#             r = 1
+#             for rows in ws.get_rows():
+#                 if check_no1(rows[t1].value) and check_no2(rows[t2].value):
+#                     # for i, row in enumerate(rows):
+#                     m_row = [x.value for x in rows]
+#                     write.append(m_row)
+#                 else:
+#                     r -= 1
+#                 r += 1
+#         file.save('.%sresult%s' % (os.sep, path[path.rfind(os.sep):]))
 
 
 def check_no1(num):
@@ -211,46 +213,125 @@ def check_no2(num):
 
 
 # 生成报表
-def scbb(paths):
-    if not os.path.exists('report'):
-        os.mkdir('report')
+# def scbb(paths):
+#     if not os.path.exists('report'):
+#         os.mkdir('report')
+#     for path in paths:
+#         data = {}
+#         print(path)
+#         file = op.Workbook(True)
+#         wb = xlrd.open_workbook(path)
+#         ws = wb.sheet_by_index(0)
+#         for rows in ws.get_rows():
+#             if rows[0].value == '月份':
+#                 continue
+#             tmp = [rows[1].value, rows[6].value, rows[2].value, rows[7].value, 1]
+#             if tmp[3].strip() == '':
+#                 continue
+#             if rows[0].value not in data.keys():
+#                 data[rows[0].value] = [tmp]
+#                 continue
+#             is_find = False
+#             for i, item in enumerate(data[rows[0].value]):
+#                 if tmp[:-1] == item[:-1]:
+#                     data[rows[0].value][i][-1] += 1
+#                     is_find = True
+#                     break
+#             if not is_find:
+#                 data[rows[0].value].append(tmp)
+#         for key, value in data.items():
+#             wt = file.create_sheet(key)
+#             wt.append(['项目', '项目名称', '媒体', '媒体名称', '汇总'])
+#             for v in value:
+#                 wt.append(v)
+#         file.save('report%s' % path[path.rfind(os.sep):])
+
+
+def do1(paths):
+    ccc = 0
     for path in paths:
-        data = {}
+        start_ts = 1562297729
+        counts = []
+        for i in range(46):
+            counts.append(0)
         print(path)
-        file = op.Workbook(True)
-        wb = xlrd.open_workbook(path)
-        ws = wb.sheet_by_index(0)
-        for rows in ws.get_rows():
-            if rows[0].value == '月份':
-                continue
-            tmp = [rows[1].value, rows[6].value, rows[2].value, rows[7].value, 1]
-            if tmp[3].strip() == '':
-                continue
-            if rows[0].value not in data.keys():
-                data[rows[0].value] = [tmp]
-                continue
-            is_find = False
-            for i, item in enumerate(data[rows[0].value]):
-                if tmp[:-1] == item[:-1]:
-                    data[rows[0].value][i][-1] += 1
-                    is_find = True
-                    break
-            if not is_find:
-                data[rows[0].value].append(tmp)
-        for key, value in data.items():
-            wt = file.create_sheet(key)
-            wt.append(['项目', '项目名称', '媒体', '媒体名称', '汇总'])
-            for v in value:
-                wt.append(v)
-        file.save('report%s' % path[path.rfind(os.sep):])
+        with open(path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                if len(line) < 5:
+                    continue
+                try:
+                    ts = int(line[:10])
+                except ValueError:
+                    print(line)
+                    # ts = int(line[1:11])
+                for i in range(46):
+                    if (ts >= start_ts + i * 6300) and (ts < start_ts + (i + 1) * 6300):
+                        counts[i] += 1
+        cc = 0
+        for c in counts:
+            print(c)
+
+
+def do2(paths):
+    ccc = 0
+    for path in paths:
+        start_ts = 1562326342
+        counts = []
+        for i in range(46):
+            counts.append(0)
+        print(path)
+        with open(path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                if len(line) < 5:
+                    continue
+                try:
+                    ts = int(line[:10])
+                except ValueError:
+                    ts = int(line[1:11])
+                for i in range(46):
+                    if (ts >= start_ts + i * 6300) and (ts < start_ts + (i + 1) * 6300):
+                        timeStamp = ts
+                        timeArray = time.localtime(timeStamp)
+                        otherStyleTime = time.strftime("%Y--%m--%d %H:%M:%S", timeArray)
+
+                        timeStamp = start_ts + i * 6300
+                        timeArray = time.localtime(timeStamp)
+                        start = time.strftime("%Y--%m--%d %H:%M:%S", timeArray)
+
+                        timeStamp = start_ts + (i + 1) * 6300
+                        timeArray = time.localtime(timeStamp)
+                        end = time.strftime("%Y--%m--%d %H:%M:%S", timeArray)
+
+                        print(i, end=' ')
+                        print(line[:-1], end=' ')
+                        print(otherStyleTime, end=' ')
+                        print('%s----%s' % (start, end))
+                        counts[i] += 1
+
+        cc = 0
+        for c in counts:
+            cc += int(c)
+        print(cc)
+
+
+def do3(paths):
+    for path in paths:
+        with open(path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                pass
 
 
 if __name__ == '__main__':
     _path = sys.argv[1]
-    main = MainSearch(_path, u'[\S\s]*', mdir=True)
+    main = MainSearch(_path, u'[\S\s]*.txt')
     main.start()
-    for o in main.get_files():
-        print(o)
+    for file in main.get_files():
+        if not (str(file).endswith('rec_mic_0_0.pcm') or str(file).endswith('rec_mic_0_0.pcm') or str(file).endswith(
+                'rec_mic_0_0.pcm') or str(file).endswith('rec_mic_0_0.pcm')):
+            os.remove(file)
     # scbb(main.get_files())
     # do_xl(main.get_files())
     # rename2z(main.get_files())

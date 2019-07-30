@@ -29,7 +29,7 @@ class Main(object):
         return self
 
     def cal_rate(self, key_name, l):
-        os.system('./wer %s %s fnl.txt' % (self.ans, self.res))
+        os.system('./wer-lnx-mac %s %s fnl.txt' % (self.ans, self.res))
         with open('fnl.txt', 'r', encoding='gbk') as f:
             lines = f.readlines()
             CHARACTOR_ACU = lines[-2:-1][0].split()[1]

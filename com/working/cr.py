@@ -1,6 +1,6 @@
 import os
 import re
-import zipfile, sys
+import sys
 
 
 class MainSearch(object):
@@ -113,7 +113,53 @@ class MainSearch(object):
                     print(fi)
 
 
+def foo(paths):
+    index = 0
+    answer = rec = ''
+    for path in paths:
+        if index == 0:
+            answer = path
+            index = 1
+        else:
+            index = 0
+            rec = path
+            print(answer + '---' + rec)
+            # os.system('./wer-lnx %s %s fnl.txt' % (answer, rec))
+            # with open('fnl.txt', 'r') as f:
+            #     lines = f.readlines()
+            #     CHARACTOR_ACU = lines[-2:-1][0].split()[1]
+            #     UTTERANCE_ACU = lines[-1:][0].split()[1]
+            #     print(CHARACTOR_ACU + '---' + UTTERANCE_ACU)
+
+
+def add(paths):
+    ans = 'anjing_total ans.txt'
+    rec = 'anjing_total_rec.txt'
+    max_ans = max_rec = 0
+    f_ans = open(ans, 'w')
+    f_rec = open(rec, 'w')
+    for p in paths:
+        with open(p, 'r') as f:
+            lines = f.readlines()
+            last_line = lines[-1].split('.')[0]
+            if 'ans' in p:
+                for line in lines:
+                    num = line[:line.find('.')]
+                    f_ans.write(line.replace(num, str(int(num) + max_ans)))
+                max_ans += int(last_line)
+            else:
+                for line in lines:
+                    num = line[:line.find('.')]
+                    f_rec.write(line.replace(num, str(int(num) + max_rec)))
+                max_rec = max_ans
+
+    f_ans.close()
+    f_rec.close()
+
+
 if __name__ == '__main__':
-    L = ['Bart', 'Lisa', 'Adam']
-    for a in L:
-       os.system('adb -s ' + a +' shell rm -rf system/app/DuerShowLauncher')
+    main = MainSearch(sys.argv[1], 'anjing[\S\s]*.txt')
+    main.start()
+    fs = main.get_files()
+    fs.sort()
+    add(fs)

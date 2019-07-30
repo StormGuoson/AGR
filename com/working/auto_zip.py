@@ -117,12 +117,12 @@ def start_zip(path):
         z = zipfile.ZipFile(os.path.join(sys.argv[1], p) + '.zip', 'w', zipfile.ZIP_DEFLATED)
         file = os.path.join(sys.argv[1], p)
         print(file)
+        print('正在压缩:%s' % p)
         main.set_path(file)
         main.start()
         for f in main.get_files():
-            z.write(f, f[f.rfind(os.sep) + 1:])
+            z.write(f, str(f).replace(sys.argv[1], '.'))
         z.close()
-        print('正在压缩:%s' % p)
 
 
 if __name__ == '__main__':

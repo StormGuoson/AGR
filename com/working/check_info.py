@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import threading
 import time
 from queue import Queue
@@ -113,6 +114,16 @@ def check_by_logcat(line):
         if 'ASR SDK VERSION_NAME_QA:' in line:
             sdk_ver = line[line.find('VERSION_NAME_QA:') + 14:-1]
             data['sdk版本号'] = sdk_ver
+        if 'asr.start param' in line:
+            pid = line[line.find('pid":') + 5:]
+            pid = pid[:pid.find(',')]
+            data['pid'] = pid
+            url = line[line.find('decoder-server.url":"') + 21:]
+            url = url[:url.find('"')]
+            data['url'] = url
+        elif 'SdkConfigProvider-key' in line:
+            key = line[line.find('SdkConfigProvider-key') + 22:-1]
+            data['key'] = key
     elif current_type == 'cw':
         if 'ASR SDK VERSION_NAME_QA:' in line:
             sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
@@ -121,6 +132,11 @@ def check_by_logcat(line):
         if 'ASR SDK VERSION_NAME_QA:' in line:
             sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
             data['sdk版本号'] = sdk_ver
+    elif current_type == 'chuangmi':
+        if 'ASR SDK VERSION_NAME_QA:' in line:
+            sdk_ver = line[line.find('VERSION_NAME_QA:') + 16:-1]
+            data['sdk版本号'] = sdk_ver
+
     if 'SHA1' in line:
         if data['唤醒引擎版本'] is None:
             line = line[line.find('SHA1: ') + 6:line.find('at') - 1]
@@ -204,11 +220,47 @@ def static_check(t):
         t = t[t.find(']: [') + 4:t.rfind(']')]
         data['系统版本号'] = t
         sys_info.close()
-        wp = os.popen('adb shell md5sum data/data/com.baidu.launcher/files/speechres/lib_esis_wp.pkg.so')
+        wp = os.popen('adb shell md5sum /data/data/com.baidu.launcher/files/speechres/lib_esis_wp.pkg.so')
+        # wp = os.popen('adb shell md5sum data/data/com.baidu.speech.demo/lib/lib_esis_wp.pkg.so')
         data['唤醒资源md5'] = wp.readlines()[0].split()[0]
         wp.close()
-        vad = os.popen('adb shell md5sum data/data/com.baidu.launcher/files/speechres/libesis_vad.pkg.so')
+        vad = os.popen('adb shell md5sum /data/data/com.baidu.launcher/files/speechres/libesis_vad.pkg.so')
+        # vad = os.popen('adb shell md5sum data/data/com.baidu.speech.demo/lib/libesis_vad.pkg.so')
         data['VAD资源md5'] = vad.readlines()[0].split()[0]
+        vad.close()
+    elif t == 'chuangmi':
+        sys_info = os.popen('adb shell getprop | grep display')
+        t = sys_info.readlines()[0]
+        t = t[t.find(']: [') + 4:t.rfind(']')]
+        data['系统版本号'] = t
+        sys_info.close()
+
+        lib = os.popen('adb shell md5sum system/lib/libbdSPILAudioProc.so')
+        data['信号库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+
+        lib = os.popen('adb shell md5sum system/lib/libbd_audio_vdev.so')
+        data['音频库md5'] = lib.readlines()[0].split()[0]
+        lib.close()
+
+        wp = os.popen(
+            'adb shell md5sum /data/local/esis_xiaodu_wak.pkg')
+        data['唤醒资源md5'] = wp.readlines()[0].split()[0]
+        wp.close()
+
+        vad = os.popen(
+            'adb shell md5sum /data/local/esis_xiaodu_vad.pkg')
+        data['VAD资源md5'] = vad.readlines()[0].split()[0]
+        vad.close()
+
+        vad = os.popen(
+            'adb shell md5sum /system/lib/libbdAudProxy.so')
+        data['下沉库'] = vad.readlines()[0].split()[0]
+        vad.close()
+
+        vad = os.popen(
+            'adb shell md5sum /system/lib/libaudrpc_spil.so')
+        data['RPC'] = vad.readlines()[0].split()[0]
         vad.close()
 
 
@@ -238,6 +290,22 @@ def select_type(t):
             '唤醒引擎版本': None,
             '唤醒资源md5': None,
             'VAD引擎版本号': None,
+            'VAD资源md5': None,
+            'pid': None,
+            'url': None,
+            'key': None
+        }
+    elif t == 'chuangmi':
+        data = {
+            'sdk版本号': None,
+            '系统版本号': None,
+            '信号库md5': None,
+            '音频库md5': None,
+            '下沉库': None,
+            'RPC': None,
+            '唤醒引擎版本': None,
+            '唤醒资源md5': None,
+            'VAD引擎版本号': None,
             'VAD资源md5': None
         }
     static_check(t)
@@ -247,6 +315,6 @@ def select_type(t):
 
 if __name__ == '__main__':
     data = {}
-    current_type = 'cw-demo'
+    current_type = 'ainemo'
     is_finish = False
     select_type(current_type)

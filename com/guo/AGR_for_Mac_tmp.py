@@ -140,7 +140,7 @@ logs = []
 MOD_AINEMO_LAUNCHER = '小度在家'
 MOD_AINEMO_DEMO = '小度在家demo'
 MOD_CW_LAUNCHER = '小维AI'
-MOD_CW_DEMO = '创维demo'
+MOD_CW_DEMO = '创维TV'
 MOD_HUAWEI_LAUNCHER = '华为'
 MOD_HUAWEI_DEMO = '华为demo'
 MOD_CW_BOX = '创维盒子'
@@ -157,25 +157,7 @@ MOD_DRIVER = '车机'
 MOD_VENUS = 'VENUS'
 MOD_CM = '创米盒子'
 
-MOD_LIST = [MOD_AINEMO_LAUNCHER,
-            MOD_AINEMO_DEMO,
-            MOD_CW_LAUNCHER,
-            MOD_CW_DEMO,
-            MOD_HUAWEI_LAUNCHER,
-            MOD_HUAWEI_DEMO,
-            MOD_CW_BOX,
-            MOD_Max,
-            MOD_XIAODUBOX,
-            MOD_XGP,
-            MOD_CW_BOX_DEMO,
-            MOD_AINEMO_1S,
-            MOD_AINEMO_1L_DEMO,
-            MOD_AINEMO_1C,
-            MOD_KUANYANG,
-            MOD_esp32,
-            MOD_DRIVER,
-            MOD_VENUS,
-            # MOD_CM
+MOD_LIST = [MOD_CW_DEMO,
             ]
 
 DATA = {}
@@ -263,7 +245,7 @@ class MODULE(object):
     def module_ep(line, no):
         if 'status=1' in line:
             write_wakeup(no)
-        elif 'asr result' in line and 'corpus_no' in line and 'lightduer_bdspeech_asr' in line:
+        elif 'asr result:' in line and 'corpus_no' in line:
             line = ast.literal_eval(line[line.find('{'):line.rfind('}') + 1])
             text = line['result']['word'][0]
             sn = line['sn']
@@ -361,14 +343,14 @@ class MODULE(object):
         #     auto_set(text, DATA['sn' + no])
         # elif line.find('wakeup_time') != -1 and line.find('result') != -1:
         #     write_wakeup(no)
-        if line.find('final_result') != -1 and line.find('sn') != -1:
+        elif 'finalResult' in line:
             line = ast.literal_eval(line[line.find('{'):])
             text = line['results_recognition'][0]
-            sn = line['origin_result']['sn']
             corpus = str(line['origin_result']['corpus_no'])
-            DATA['sn' + no] = sn + "_" + corpus
+            sn = line['origin_result']['sn']
             DATA['text' + no] = text
-            auto_set(text, sn)
+            DATA['sn' + no] = sn + '_' + corpus
+            auto_set(DATA['text' + no], DATA['sn' + no])
 
     # 创维launcher识别
     @staticmethod
@@ -499,10 +481,9 @@ class MODULE(object):
     def module_xgp(self, line, no):
         self.module_xdbox(line, no)
 
-    counter = 1
-
-    def module_xdbox(self, line, no):
-        global counter
+    @staticmethod
+    def module_xdbox(line, no):
+        # 小钢炮
         if 'wakeup trigger' in line:
             write_wakeup(no)
         elif 'kwd_detect' in line:
@@ -524,14 +505,7 @@ class MODULE(object):
             DATA['text' + no] = text
             DATA['sn' + no] = sn + "_" + corpus
             auto_set(DATA['text' + no], DATA['sn' + no])
-            time.sleep(3)
-            os.system(
-                'scp -r root@%s:/tmp/original-audio /Users/baidu/Desktop/xdbox/%s' % (ACTIVE_DEVICES[0], str(self.counter)))
-            self.counter += 1
-            time.sleep(2)
-            os.system('ssh root@%s rm /tmp/original-audio/*' % (ACTIVE_DEVICES[0]))
 
-            print('done')
         # audio:
         # if line.find('kwd_detect') != -1:
         #     write_wakeup(no)
@@ -627,7 +601,6 @@ def consume(command, no):
                 mod.main_doing(line, cm, no)
             except Exception as e1:
                 print('\033[1;31m错误: ' + repr(e1) + '\033[0m')
-                os.system('ssh root@%s rm /tmp/original-audio/*' % (ACTIVE_DEVICES[0]))
                 # frame.txt_log.write(repr(e))
         while not stderr_queue.empty():
             line = stderr_queue.get().decode('utf-8')
@@ -799,14 +772,14 @@ class Tools(object):
             CURRENT_MODULE = mods[i]
             if CURRENT_MODULE in activities.keys():
                 print('\033[1;36m重启APP\033[0m\n')
-                if CURRENT_MODULE in (MOD_AINEMO_LAUNCHER, MOD_AINEMO_1S, MOD_AINEMO_1L_DEMO, MOD_AINEMO_1C):
+                if CURRENT_MODULE in (MOD_AINEMO_LAUNCHER,):
                     os.popen('adb -s %s shell rm data/log/*.raw' % dev).close()
                     os.popen('adb -s %s shell rm data/log/logcat_full.log.*' % dev).close()
                 stop = 'adb -s %s shell am force-stop %s 2>/dev/null' % (dev, activities[CURRENT_MODULE].split('/')[0])
-                start = 'adb -s %s shell am start %s 2>/dev/null' % (dev, activities[CURRENT_MODULE])
-                os.popen(stop).close()
                 if not activities[CURRENT_MODULE].endswith('none'):
-                    os.popen(start).close()
+                    start = 'adb -s %s shell am start %s 2>/dev/null' % (dev, activities[CURRENT_MODULE])
+                os.popen(stop).close()
+                os.popen(start).close()
             else:
                 print('\n\033[1;31m该设备不支持\033[0m')
 
@@ -900,7 +873,7 @@ class InputWatcher(threading.Thread):
                         file = 'data/local/aud_rec/alg_wake_info_0'
                     elif mods[i] in (MOD_CW_LAUNCHER, MOD_CW_DEMO):
                         file = 'data/local/tmp/aud_rec/alg_wake_info_0'
-                    elif mods[i] in (MOD_CW_BOX,):
+                    elif mods[i] in (MOD_CW_BOX, ):
                         file = 'data/local/aud_rec/alg_wake_*'
                     else:
                         file = ''
@@ -1004,34 +977,41 @@ def multi_mod(ms):
 
 
 def start_main():
-    global only_wakeup, CURRENT_MODULE, stop_self, restart_self, is_save_log
+    global only_wakeup, CURRENT_MODULE, stop_self, restart_self, is_save_log, ACTIVE_DEVICES, CURRENT_MODULE
     ACTIVE_DEVICES.clear()
     logs.clear()
     mods.clear()
     stop_self = restart_self = False
     only_wakeup = is_save_log = False
-    t.show_mods()
-    print('\033[1;33m输入 h 查看帮助\033[0m')
-    try:
-        mod = input('\033[1;36m请选择设备类型：\033[0m')
-        if mod == 'h':
-            show_help()
-        elif mod == 'q':
-            t.kill_self()
-        elif len(mod.split()) == 1:
-            single_mod(mod)
-        else:
-            multi_mod(mod.split())
-    except (ValueError, IndexError):
-        os.system('clear')
-        print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
-        start_main()
+    dev = get_device_list()[0]
+    print(dev)
+    CURRENT_MODULE = MOD_CW_DEMO
+    ACTIVE_DEVICES.append(dev)
+    mods.append(CURRENT_MODULE)
+    ThreadLogcat(0)
+
+    # t.show_mods()
+    # print('\033[1;33m输入 h 查看帮助\033[0m')
+    # try:
+    #     mod = input('\033[1;36m请选择设备类型：\033[0m')
+    #     if mod == 'h':
+    #         show_help()
+    #     elif mod == 'q':
+    #         t.kill_self()
+    #     elif len(mod.split()) == 1:
+    #         single_mod(mod)
+    #     else:
+    #         multi_mod(mod.split())
+    # except (ValueError, IndexError):
+    #     os.system('clear')
+    #     print('\033[1;31m错误:输入不合法！！！重新输入 \033[0m')
+    #     start_main()
 
 
 if __name__ == '__main__':
     t = Tools()
     try:
-        os.system('clear')
+        # os.system('clear')
         start_main()
     except KeyboardInterrupt:
         pass

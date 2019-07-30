@@ -8,7 +8,6 @@ import time
 from PIL import Image as img
 
 import uiautomator2 as auto
-from past.builtins import raw_input
 
 start = '1'
 
@@ -180,7 +179,17 @@ def jump_swipe():
 
 
 if __name__ == '__main__':
-    d = auto.connect('85608d6e')
+    d = auto.connect('32c9d17')
+    ot = nt = ''
+    while True:
+        if d.exists(resourceId='com.alibaba.ailabs.tg:id/va_sentence_ask_pure_text_content'):
+            texts = d(resourceId='com.alibaba.ailabs.tg:id/va_sentence_ask_pure_text_content')
+            nt = texts[len(texts) - 1].get_text()[1:-1]
+            if nt != ot:
+                print(nt)
+                ot = nt
+            time.sleep(.5)
+
     # d(resourceId='android:id/text2').click()
     # dev(resourceId='com.baidu.speech.demo.skyworth:id/btn_back').click()
     # d.app_start('com.baidu.speech.demo.skyworth', 'com.baidu.speech.demo.skyworth.act.Activity01ASR')
@@ -189,6 +198,6 @@ if __name__ == '__main__':
     # start_diangan()
     # points = []
     # d.swipe_points()
-    while True:
-        jump_swipe()
-        time.sleep(2)
+    # while True:
+    #     jump_swipe()
+    #     time.sleep(2)
